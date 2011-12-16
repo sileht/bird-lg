@@ -1,11 +1,14 @@
 #!/usr/bin/python
 
 import sys
-
+from dns import resolver,reversename
 from flask import Flask, render_template, jsonify
 app = Flask(__name__)
 
 import socket
+
+def get_ip(n, q):
+	return str(resolver.query(n,q)[0])
 
 def check_mask(n):
 	if not n: 
@@ -37,12 +40,32 @@ def hello():
 @app.route("/<host>/<proto>/prefix/<prefix>")
 @app.route("/<host>/<proto>/prefix/<prefix>/<mask>")
 def prefix(host, proto, prefix, mask=""):
-	output = '<h3>' + host + '(' + proto + ') show route for ' + prefix + (mask and '/' + mask or '' ) + '</h3>'
+	qprefix = prefix
 
 	# security check
-	if ( (proto == "ipv6" and check_ipv6(prefix)) or (proto == "ipv4" and check_ipv4(prefix)) ) and check_mask(mask):
+	allowed = True
+	if not check_mask(mask):
+		allowed = False
+	elif proto == "ipv6":
+		if not check_ipv6(prefix):
+			try:
+				qprefix = get_ip(prefix, "AAAA")
+			except:
+				allowed = False
+		
+	elif proto == "ipv4":
+		if not check_ipv4(prefix):
+			try:
+				qprefix = get_ip(prefix, "A")
+			except:
+				allowed = False
+	else:
+		allowed = False
+	output = '<h3>' + host + '(' + proto + ') show route for ' + prefix + (prefix != qprefix and " (%s)"%qprefix or "") + (mask and '/' + mask or '' ) + '</h3>'
+	if allowed:
+		if mask: qprefix = qprefix +"/"+mask
 		if mask: prefix = prefix +"/"+mask
-		ok, string = get_cmd_result(host , proto, "show route for " + prefix)
+		ok, string = get_cmd_result(host , proto, "show route for " + qprefix)
 		if ok:
 			string = "\n".join([ s.replace("1007-"," ") for s in string.split("\n") if not s.startswith("0000") ])
 			output +='<pre>' + string + '</pre>'
@@ -50,6 +73,7 @@ def prefix(host, proto, prefix, mask=""):
 			output += string
 	else:
 		output += prefix + ' not allowed'
+
 	return render_template('index.html', output=output, typ="prefix", host=host+"/"+proto, prefix=prefix)
 
 @app.route("/<host>/<proto>/detail/<name>")
