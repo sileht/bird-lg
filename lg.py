@@ -55,13 +55,16 @@ def prefix(host, proto, prefix="", mask=""):
 			try:
 				qprefix = get_ip(prefix, "AAAA")
 			except:
+				qprefix = "unresolvable"
 				allowed = False
+
 		
 	elif proto == "ipv4":
 		if not check_ipv4(prefix):
 			try:
 				qprefix = get_ip(prefix, "A")
 			except:
+				qprefix = "unresolvable"
 				allowed = False
 	else:
 		allowed = False
@@ -77,8 +80,10 @@ def prefix(host, proto, prefix="", mask=""):
 		else:
 			output += string
 	else:
-		if prefix:
-			output += prefix + ' not allowed'
+		if prefix and qprefix != "unresolvable":
+			output += prefix + ' not valid'
+		elif prefix:
+			output += prefix + ' unresolvable'
 		else:
 			output += 'prefix missing'
 
@@ -141,26 +146,26 @@ def get_cmd_result(host, proto, cmd):
 #	sock.setblocking(0)
 	try:
 		sock.connect((host, port))
-		app.logger.info("open socket on %s:%d", host, port)
+		app.logger.debug("open socket on %s:%d", host, port)
 
 		sock.send(cmd + "\n")
-		app.logger.info("send %s socket on %s:%d", cmd, host, port)
+		app.logger.debug("send %s socket on %s:%d", cmd, host, port)
 
 		bufsize = 4096
 		data = sock.recv(bufsize)
 		string = data
-		app.logger.info("read %s (%d)", data, len(data))
+		app.logger.debug("read %s (%d)", data, len(data))
 		code = string.split("\n")[-2][0:4]
 		while not code[0] in ["0", "9", "8"]:
 			data = sock.recv(bufsize)
 			string = string + data
-			app.logger.info("read %s (%d)", data, len(data))
+			app.logger.debug("read %s (%d)", data, len(data))
 			code = string.strip()[len(string.strip())-4:]
 
 		if code[0] in [ "9", "8" ]:
 			ret = False
 
-		app.logger.info("return %s",string)
+		app.logger.debug("return %s",string)
 	except Exception as detail:
 		ret = False
 		string = "Failed connect to %s:%d (%s)"%(host, port, detail)
@@ -169,5 +174,5 @@ def get_cmd_result(host, proto, cmd):
 	return (ret, string)
 
 if __name__ == "__main__":
-	app.debug = True
+	#app.debug = True
 	app.run()
