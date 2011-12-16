@@ -1,5 +1,7 @@
 
-bird-lg depend on python-flask 
+bird-lg depend on :
+ - python-flask 
+ - python-dnspython
 
 It use TCP socket to talk with bird
 
