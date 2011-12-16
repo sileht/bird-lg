@@ -1,0 +1,64 @@
+<!doctype html>
+<title>Tetaneutral.net looking glass</title>
+<link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
+<script type="text/javascript" src="{{url_for('static', filename='jquery.js') }}"></script>
+<script type="text/javascript">
+	$(function() {
+			$("#typ").change(function(){
+				$("#name").hide()
+				$("#prefix").hide()
+				switch ($("#typ").val())
+				{
+					case "summary":
+						break;
+					case "detail":
+						$("#name").show()
+						break;
+					case "prefix":
+						$("#prefix").show()
+						break;
+				}
+
+			});
+			$("#submit").click( function(){
+				switch ($("#typ").val())
+				{
+					case "summary":
+						document.location = "/" + $("#host").val() + "/summary";
+						break;
+					case "detail":
+						document.location = "/" + $("#host").val() + "/detail/" + $("#name").val() ;
+						break;
+					case "prefix":
+						document.location = "/" + $("#host").val() + "/prefix/" + $("#prefix").val() ;
+						break;
+				}
+				});
+			$("#typ option[value={{typ}}]").attr("selected", "selected")
+			$("#typ").change()
+			$("#host option[value='{{host}}']").attr("selected", "selected")
+			$("#host").change()
+
+	});
+</script>
+<div id="page">
+	<h1>Tetaneutral.net Looking Glass</h1>
+	<form>
+		<select id="host">
+			<option value="gw/ipv4">gw (ipv4)</option>
+			<option value="gw/ipv6">gw (ipv6)</option>
+			<option value="h3/ipv4" selected="selected">h3 (ipv4)</option>
+			<option value="h3/ipv6">h3 (ipv6)</option>
+		</select>
+		<select id="typ">
+			<option value="summary">summary</option>
+			<option value="detail">detail</option>
+			<option value="prefix">prefix</option>
+		</select>
+
+		<input type="text" id="name" style="display:none" value="{{ name }}"></input>
+		<input type="text" id="prefix" style="display:none" value="{{ prefix }}"></input>
+		<input type="button" id="submit" value="submit"></input>
+	</form>
+	{% block body %}{% endblock %}
+</div>
