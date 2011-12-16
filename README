@@ -1,0 +1,7 @@
+
+bird-lg depend on python-flask 
+
+It use TCP socket to talk with bird
+
+To convert unix socket to tcp-socket you can use:
+# socat UNIX-CONNECT:/var/run/bird.ctl TCP-LISTEN:9994,reuseaddr,fork,range=XXX.XXX.XXX.XXX/32
