@@ -37,14 +37,18 @@ def check_ipv6(n):
 def hello():
 	return render_template('index.html')
 
+@app.route("/<host>/<proto>/prefix/")
 @app.route("/<host>/<proto>/prefix/<prefix>")
 @app.route("/<host>/<proto>/prefix/<prefix>/<mask>")
-def prefix(host, proto, prefix, mask=""):
+def prefix(host, proto, prefix="", mask=""):
 	qprefix = prefix
+
 
 	# security check
 	allowed = True
-	if not check_mask(mask):
+	if not prefix:
+		allowed = False
+	elif not check_mask(mask):
 		allowed = False
 	elif proto == "ipv6":
 		if not check_ipv6(prefix):
@@ -61,7 +65,8 @@ def prefix(host, proto, prefix, mask=""):
 				allowed = False
 	else:
 		allowed = False
-	output = '<h3>' + host + '(' + proto + ') show route for ' + prefix + (prefix != qprefix and " (%s)"%qprefix or "") + (mask and '/' + mask or '' ) + '</h3>'
+
+	output = '<h3>' + host + ' (' + proto + ') show route for ' + prefix + (prefix != qprefix and " (%s)"%qprefix or "") + (mask and '/' + mask or '' ) + '</h3>'
 	if allowed:
 		if mask: qprefix = qprefix +"/"+mask
 		if mask: prefix = prefix +"/"+mask
@@ -72,25 +77,35 @@ def prefix(host, proto, prefix, mask=""):
 		else:
 			output += string
 	else:
-		output += prefix + ' not allowed'
+		if prefix:
+			output += prefix + ' not allowed'
+		else:
+			output += 'prefix missing'
 
 	return render_template('index.html', output=output, typ="prefix", host=host+"/"+proto, prefix=prefix)
 
+@app.route("/<host>/<proto>/detail/")
 @app.route("/<host>/<proto>/detail/<name>")
-def detail(host, proto, name):
-	output = '<h3>' + host + '(' + proto + ') show protocols all ' + name + '</h3>'
+def detail(host, proto, name=""):
+	output = '<h3>' + host + ' (' + proto + ') show protocols all ' + name + '</h3>'
 
-	ok, string = get_cmd_result(host , proto, "show protocols all " + name)
-	if ok:
-		string = "\n".join([ s.strip() for s in string.split("\n") if s.startswith(" ")])
-		output +='<pre>' + string + '</pre>'
+	if name:
+		ok, string = get_cmd_result(host , proto, "show protocols all " + name)
+		if ok:
+			string = "\n".join([ s.strip() for s in string.split("\n") if s.startswith(" ")])
+			output +='<pre>' + string + '</pre>'
+		else:
+			output += string
 	else:
-		output += string
+		output += "name missing"
+
 	return render_template('index.html', output=output, typ="detail", host=host+"/"+proto, name=name)
 
+@app.route("/<host>/")
+@app.route("/<host>/<proto>/")
 @app.route("/<host>/<proto>/summary")
-def summary(host, proto):
-	output = '<h3>' + host + '(' + proto + ') show protocols</h3>'
+def summary(host, proto="ipv4"):
+	output = '<h3>' + host + ' (' + proto + ') show protocols</h3>'
 
 	ok, string = get_cmd_result(host , proto, "show protocols")
 	if ok:
