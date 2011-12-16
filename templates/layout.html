@@ -39,6 +39,14 @@
 			$("#host option[value='{{host}}']").attr("selected", "selected")
 			$("#host").change()
 
+			keypress_handler = function(e) {
+				if (e.which == 13) {
+					$("#submit").click() 
+				}
+			};
+			$("#prefix").keypress(keypress_handler)
+			$("#name").keypress(keypress_handler)
+
 	});
 </script>
 <div id="page">
