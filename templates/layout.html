@@ -4,22 +4,36 @@
 <script type="text/javascript" src="{{url_for('static', filename='jquery.js') }}"></script>
 <script type="text/javascript">
 	$(function() {
+
+			$("#typ option[value={{typ}}]").attr("selected", "selected")
+			$("#host option[value='{{host}}']").attr("selected", "selected")
+			$("#host").change()
+
 			$("#typ").change(function(){
 				$("#name").hide()
 				$("#prefix").hide()
+				$("#submit").hide()
 				switch ($("#typ").val())
 				{
 					case "summary":
+						if ($("#typ").val() != "{{typ}}")
+							$("#submit").click()
 						break;
 					case "detail":
 						$("#name").show()
+						$("#submit").show()
 						break;
 					case "prefix":
+						$("#submit").show()
 						$("#prefix").show()
+						if ($("#prefix").val()) {
+							$("#submit").click()
+						}
 						break;
 				}
 
 			});
+			$("#typ").change()
 			$("#submit").click( function(){
 				switch ($("#typ").val())
 				{
@@ -34,10 +48,6 @@
 						break;
 				}
 				});
-			$("#typ option[value={{typ}}]").attr("selected", "selected")
-			$("#typ").change()
-			$("#host option[value='{{host}}']").attr("selected", "selected")
-			$("#host").change()
 
 			keypress_handler = function(e) {
 				if (e.which == 13) {
@@ -47,6 +57,25 @@
 			$("#prefix").keypress(keypress_handler)
 			$("#name").keypress(keypress_handler)
 
+			$("#host").change(function (){
+				switch ($("#typ").val())
+				{
+					case "summary":
+						$("#submit").click()
+						break;
+					case "detail":
+						if ($("#name").val()) {
+							$("#submit").click()
+						}
+						break;
+					case "prefix":
+						if ($("#prefix").val()) {
+							$("#submit").click()
+						}
+						break;
+				}
+			});
+
 	});
 </script>
 <div id="page">
@@ -55,7 +84,7 @@
 		<select id="host">
 			<option value="gw/ipv4">gw (ipv4)</option>
 			<option value="gw/ipv6">gw (ipv6)</option>
-			<option value="h3/ipv4" selected="selected">h3 (ipv4)</option>
+			<option value="h3/ipv4">h3 (ipv4)</option>
 			<option value="h3/ipv6">h3 (ipv6)</option>
 		</select>
 		<select id="typ">
