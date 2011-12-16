@@ -37,7 +37,7 @@ def hello():
 @app.route("/<host>/<proto>/prefix/<prefix>")
 @app.route("/<host>/<proto>/prefix/<prefix>/<mask>")
 def prefix(host, proto, prefix, mask=""):
-	output = '<h3>' + host + '(' + proto + ') show route for ' + prefix + '/' + mask + '</h3>'
+	output = '<h3>' + host + '(' + proto + ') show route for ' + prefix + (mask and '/' + mask or '' ) + '</h3>'
 
 	# security check
 	if ( (proto == "ipv6" and check_ipv6(prefix)) or (proto == "ipv4" and check_ipv4(prefix)) ) and check_mask(mask):
