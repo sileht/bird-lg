@@ -56,22 +56,10 @@ def prefix(host, proto, prefix, mask=""):
 def detail(host, proto, name):
 	output = '<h3>' + host + '(' + proto + ') show protocols all ' + name + '</h3>'
 
-	# security check
-	#ok, string = get_cmd_result(host , proto, "show protocols")
-	ok = True
+	ok, string = get_cmd_result(host , proto, "show protocols all " + name)
 	if ok:
-		#protocols = [ s.split()[0] for s in string.split("\n") if s.startswith(" ") ]a
-		protocols = [ name ]
-		if name in protocols : 
-
-			ok, string = get_cmd_result(host , proto, "show protocols all " + name)
-			if ok:
-				string = "\n".join([ s.strip() for s in string.split("\n") if s.startswith(" ")])
-				output +='<pre>' + string + '</pre>'
-			else:
-				output += string
-		else:
-			output += name + ' don\'t exist'
+		string = "\n".join([ s.strip() for s in string.split("\n") if s.startswith(" ")])
+		output +='<pre>' + string + '</pre>'
 	else:
 		output += string
 	return render_template('index.html', output=output, typ="detail", host=host+"/"+proto, name=name)
@@ -83,26 +71,13 @@ def summary(host, proto):
 	ok, string = get_cmd_result(host , proto, "show protocols")
 	if ok:
 		output += '<pre><table>'
-		protocols_info = [ s for s in string.split("\n") if s.startswith(" ") ]
-		for infos in protocols_info:
+		for infos in string.split("\n"):
+			if not infos.startswith(" "): continue
 			d = infos.split()
 			name = d[0]
 			typ = d[1]
 			if typ == "BGP":
-				output += '<tr><td><a href="/%s/%s/detail/%s">%s</a><td><td>%s</td></tr>'%(host,proto,name,name,infos.replace(name,""))
-			continue
-			try:
-				name, typ, status, up, date, hour, info = infos
-			except:
-				try:
-					name, typ, status, up, date, hour = infos
-					info = ""
-				except:
-					name, typ, status, up, hour = infos
-					info = ""
-					date = ""
-			if typ == "BGP":
-				output += '<tr><td><a href="/%s/%s/detail/%s">%s</a><td><td>%s</td><td>%s</td><td>%s</td><td>%s %s</td><td>%s</td></tr>'%(host,proto,name,name,typ,status,up,date,hour,info)
+				output += '<tr><td><a href="/%s/%s/detail/%s">%s</a><td><td>%s</td></tr>'%(host,proto,name,name,infos.replace(name,"").strip())
 		output += '</table></pre>'
 	else:
 		output += string
@@ -136,15 +111,14 @@ def get_cmd_result(host, proto, cmd):
 		data = sock.recv(bufsize)
 		string = data
 		app.logger.info("read %s (%d)", data, len(data))
-		code = string.strip()[len(string.strip())-4:]
 		code = string.split("\n")[-2][0:4]
-		while not code in ["0000", "9001"]:
+		while not code[0] in ["0", "9", "8"]:
 			data = sock.recv(bufsize)
 			string = string + data
 			app.logger.info("read %s (%d)", data, len(data))
 			code = string.strip()[len(string.strip())-4:]
 
-		if code == "9001":
+		if code[0] in [ "9", "8" ]:
 			ret = False
 
 		app.logger.info("return %s",string)
