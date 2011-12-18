@@ -37,6 +37,9 @@ def check_ipv6(n):
 def hello():
 	return render_template('index.html')
 
+@app.route("/<host>/<proto>/prefix/")
+@app.route("/<host>/<proto>/prefix/<prefix>")
+@app.route("/<host>/<proto>/prefix/<prefix>/<mask>")
 @app.route("/<host>/<proto>/prefix<all>/")
 @app.route("/<host>/<proto>/prefix<all>/<prefix>")
 @app.route("/<host>/<proto>/prefix<all>/<prefix>/<mask>")
