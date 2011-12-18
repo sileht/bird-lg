@@ -37,10 +37,10 @@ def check_ipv6(n):
 def hello():
 	return render_template('index.html')
 
-@app.route("/<host>/<proto>/prefix/")
-@app.route("/<host>/<proto>/prefix/<prefix>")
-@app.route("/<host>/<proto>/prefix/<prefix>/<mask>")
-def prefix(host, proto, prefix="", mask=""):
+@app.route("/<host>/<proto>/prefix<all>/")
+@app.route("/<host>/<proto>/prefix<all>/<prefix>")
+@app.route("/<host>/<proto>/prefix<all>/<prefix>/<mask>")
+def prefix(host, proto, prefix="", mask="", all=False):
 	qprefix = prefix
 
 
@@ -69,11 +69,11 @@ def prefix(host, proto, prefix="", mask=""):
 	else:
 		allowed = False
 
-	output = '<h3>' + host + ' (' + proto + ') show route for ' + prefix + (prefix != qprefix and " (%s)"%qprefix or "") + (mask and '/' + mask or '' ) + '</h3>'
+	output = '<h3>' + host + ' (' + proto + ') show route for ' + prefix + (prefix != qprefix and " (%s)"%qprefix or "") + (mask and '/' + mask or '' ) + (all and " all" or "") + '</h3>'
 	if allowed:
 		if mask: qprefix = qprefix +"/"+mask
 		if mask: prefix = prefix +"/"+mask
-		ok, string = get_cmd_result(host , proto, "show route for " + qprefix)
+		ok, string = get_cmd_result(host , proto, "show route for " + qprefix + (all and "all" or ""))
 		if ok:
 			string = "\n".join([ s.replace("1007-"," ") for s in string.split("\n") if not s.startswith("0000") ])
 			output +='<pre>' + string + '</pre>'
@@ -87,7 +87,7 @@ def prefix(host, proto, prefix="", mask=""):
 		else:
 			output += 'prefix missing'
 
-	return render_template('index.html', output=output, typ="prefix", host=host+"/"+proto, prefix=prefix)
+	return render_template('index.html', output=output, typ="prefix" + (all and "_detail" or ""), host=host+"/"+proto, prefix=prefix)
 
 @app.route("/<host>/<proto>/detail/")
 @app.route("/<host>/<proto>/detail/<name>")

@@ -30,6 +30,13 @@
 							$("#submit").click()
 						}
 						break;
+					case "prefix_detail":
+						$("#submit").show()
+						$("#prefix").show()
+						if ($("#prefix").val()) {
+							$("#submit").click()
+						}
+						break;
 				}
 
 			});
@@ -45,6 +52,9 @@
 						break;
 					case "prefix":
 						document.location = "/" + $("#host").val() + "/prefix/" + $("#prefix").val() ;
+						break;
+					case "prefix_detail":
+						document.location = "/" + $("#host").val() + "/prefix_detail/" + $("#prefix").val() ;
 						break;
 				}
 				});
@@ -72,6 +82,10 @@
 						if ($("#prefix").val()) {
 							$("#submit").click()
 						}
+					case "prefix_detail":
+						if ($("#prefix").val()) {
+							$("#submit").click()
+						}
 						break;
 				}
 			});
@@ -91,6 +105,7 @@
 			<option value="summary">summary</option>
 			<option value="detail">detail</option>
 			<option value="prefix">prefix</option>
+			<option value="prefix_detail">prefix detail</option>
 		</select>
 
 		<input type="text" id="name" style="display:none" value="{{ name }}"></input>
