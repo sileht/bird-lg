@@ -45,16 +45,16 @@
 				switch ($("#typ").val())
 				{
 					case "summary":
-						document.location = "/" + $("#host").val() + "/summary";
+						document.location = "/summary/" + $("#host").val() ;
 						break;
 					case "detail":
-						document.location = "/" + $("#host").val() + "/detail/" + $("#name").val() ;
+						document.location = "/detail/" + $("#host").val() + "/" + $("#name").val() ;
 						break;
 					case "prefix":
-						document.location = "/" + $("#host").val() + "/prefix/" + $("#prefix").val() ;
+						document.location = "/prefix/" + $("#host").val() + "/" + $("#prefix").val() ;
 						break;
 					case "prefix_detail":
-						document.location = "/" + $("#host").val() + "/prefix_detail/" + $("#prefix").val() ;
+						document.location = "/prefix_detail/" + $("#host").val() + "/" + $("#prefix").val() ;
 						break;
 				}
 				});

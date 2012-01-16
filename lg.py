@@ -1,8 +1,8 @@
 #!/usr/bin/python
 
-import sys
+import sys, os, subprocess, re
 from dns import resolver,reversename
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, redirect
 app = Flask(__name__)
 
 import socket
@@ -33,17 +33,47 @@ def check_ipv6(n):
     except socket.error:
         return False
 
+
+def cleanup_output(text):
+	return "\n".join([ add_link(re.sub(r'^[0-9]*-', r'  ', line)) for line in text.split("\n") if not line.startswith("0000") ])
+
+def add_link(text):
+	if text.strip().startswith("BGP.as_path:") or \
+		text.strip().startswith("Neighbor AS:") :
+		return re.sub(r'([0-9]*)',r'<a href="/whois/\1">\1</a>',text)
+	else:
+		return text
+
+#@app.errorhandler(404)
+#def notfound(error):
+#	return redirect("/")
+
 @app.route("/")
 def hello():
 	return render_template('index.html')
 
-@app.route("/<host>/<proto>/prefix/")
-@app.route("/<host>/<proto>/prefix/<prefix>")
-@app.route("/<host>/<proto>/prefix/<prefix>/<mask>")
-@app.route("/<host>/<proto>/prefix<all>/")
-@app.route("/<host>/<proto>/prefix<all>/<prefix>")
-@app.route("/<host>/<proto>/prefix<all>/<prefix>/<mask>")
-def prefix(host, proto, prefix="", mask="", all=False):
+@app.route("/whois/<asnum>")
+def whois(asnum):
+	output = "<h3> Whois as" + asnum + "</h3><pre>"
+	try:
+		asnum = int(asnum)
+	except:
+		output += "Failed to parse as%s"%asnum
+	else:
+		output += subprocess.Popen(['whois', 'as%d'%asnum], stdout=subprocess.PIPE).communicate()[0].decode('utf-8', 'ignore')
+	output += "</pre>"
+	return render_template('index.html', output=output, typ="whois", asnum=asnum)
+
+@app.route("/prefix_detail/<host>/<proto>/")
+@app.route("/prefix_detail/<host>/<proto>/<prefix>")
+@app.route("/prefix_detail/<host>/<proto>/<prefix>/<mask>")
+def show_route_for_prefix_detail(host, proto, prefix="", mask=""):
+	return show_route_for_prefix(host, proto=proto, prefix=prefix, mask=mask, all = True)
+
+@app.route("/prefix/<host>/<proto>/")
+@app.route("/prefix/<host>/<proto>/<prefix>")
+@app.route("/prefix/<host>/<proto>/<prefix>/<mask>")
+def show_route_for_prefix(host, proto, prefix="", mask="", all=False):
 	qprefix = prefix
 
 
@@ -73,13 +103,13 @@ def prefix(host, proto, prefix="", mask="", all=False):
 		allowed = False
 
 	output = '<h3>' + host + ' (' + proto + ') show route for ' + prefix + (prefix != qprefix and " (%s)"%qprefix or "") + (mask and '/' + mask or '' ) + (all and " all" or "") + '</h3>'
+
 	if allowed:
 		if mask: qprefix = qprefix +"/"+mask
 		if mask: prefix = prefix +"/"+mask
-		ok, string = get_cmd_result(host , proto, "show route for " + qprefix + (all and "all" or ""))
+		ok, string = get_cmd_result(host , proto, "show route for " + qprefix + (all and " all" or ""))
 		if ok:
-			string = "\n".join([ s.replace("1007-"," ") for s in string.split("\n") if not s.startswith("0000") ])
-			output +='<pre>' + string + '</pre>'
+			output += '<pre>' + cleanup_output(string) + '</pre>'
 		else:
 			output += string
 	else:
@@ -92,26 +122,26 @@ def prefix(host, proto, prefix="", mask="", all=False):
 
 	return render_template('index.html', output=output, typ="prefix" + (all and "_detail" or ""), host=host+"/"+proto, prefix=prefix)
 
-@app.route("/<host>/<proto>/detail/")
-@app.route("/<host>/<proto>/detail/<name>")
+@app.route("/detail/<host>/<proto>/")
+@app.route("/detail/<host>/<proto>/<name>")
 def detail(host, proto, name=""):
 	output = '<h3>' + host + ' (' + proto + ') show protocols all ' + name + '</h3>'
 
-	if name:
+	if not name:
+		output += "name missing"
+	else:
 		ok, string = get_cmd_result(host , proto, "show protocols all " + name)
 		if ok:
-			string = "\n".join([ s.strip() for s in string.split("\n") if s.startswith(" ")])
-			output +='<pre>' + string + '</pre>'
+			output += '<pre>'
+			output += "\n".join([ add_link(s.strip()) for s in string.split("\n") if s.startswith(" ")])
+			output += '</pre>'
 		else:
 			output += string
-	else:
-		output += "name missing"
 
 	return render_template('index.html', output=output, typ="detail", host=host+"/"+proto, name=name)
 
-@app.route("/<host>/")
-@app.route("/<host>/<proto>/")
-@app.route("/<host>/<proto>/summary")
+@app.route("/summary/<host>")
+@app.route("/summary/<host>/<proto>")
 def summary(host, proto="ipv4"):
 	output = '<h3>' + host + ' (' + proto + ') show protocols</h3>'
 
@@ -124,7 +154,7 @@ def summary(host, proto="ipv4"):
 			name = d[0]
 			typ = d[1]
 			if typ == "BGP":
-				output += '<tr><td><a href="/%s/%s/detail/%s">%s</a><td><td>%s</td></tr>'%(host,proto,name,name,infos.replace(name,"").strip())
+				output += '<tr><td><a href="/detail/%s/%s/%s">%s</a><td><td>%s</td></tr>'%(host,proto,name,name,infos.replace(name,"").strip())
 		output += '</table></pre>'
 	else:
 		output += string
@@ -176,6 +206,6 @@ def get_cmd_result(host, proto, cmd):
 	sock.close()
 	return (ret, string)
 
+app.debug = True
 if __name__ == "__main__":
-	#app.debug = True
-	app.run()
+	app.run("0.0.0.0")
