@@ -1,119 +1,132 @@
 <!doctype html>
 <title>Tetaneutral.net looking glass</title>
+<meta charset="UTF-8">
 <link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
 <script type="text/javascript" src="{{url_for('static', filename='jquery.js') }}"></script>
+<script type="text/javascript" src="{{url_for('static', filename='jquery-impromptu.3.2.min.js') }}"></script>
 <script type="text/javascript">
-	$(function() {
-
-			$("#typ option[value={{typ}}]").attr("selected", "selected")
-			$("#host option[value='{{host}}']").attr("selected", "selected")
-			$("#host").change()
-
-			$("#typ").change(function(){
-				$("#name").hide()
-				$("#prefix").hide()
-				$("#submit").hide()
-				switch ($("#typ").val())
-				{
-					case "summary":
-						if ($("#typ").val() != "{{typ}}")
-							$("#submit").click()
-						break;
-					case "detail":
-						$("#name").show()
-						$("#submit").show()
-						break;
-					case "prefix":
-						$("#submit").show()
-						$("#prefix").show()
-						if ($("#prefix").val()) {
-							$("#submit").click()
-						}
-						break;
-					case "prefix_detail":
-						$("#submit").show()
-						$("#prefix").show()
-						if ($("#prefix").val()) {
-							$("#submit").click()
-						}
-						break;
-				}
-
+$( function() {
+		$("a.whois").click(function (event){
+			event.preventDefault();
+			link = $(this).attr('href')
+			$.getJSON(link, function(data) {
+				$.prompt("<h3>" + data.title + "</h3>" + data.output,{ show:'slideDown' });
 			});
-			$("#typ").change()
-			$("#submit").click( function(){
-				switch ($("#typ").val())
-				{
-					case "summary":
-						document.location = "/summary/" + $("#host").val() ;
-						break;
-					case "detail":
-						document.location = "/detail/" + $("#host").val() + "/" + $("#name").val() ;
-						break;
-					case "prefix":
-						document.location = "/prefix/" + $("#host").val() + "/" + $("#prefix").val() ;
-						break;
-					case "prefix_detail":
-						document.location = "/prefix_detail/" + $("#host").val() + "/" + $("#prefix").val() ;
-						break;
-				}
-				});
+		});
 
-			keypress_handler = function(e) {
-				if (e.which == 13) {
-					$("#submit").click() 
-				}
-			};
-			$("#prefix").keypress(keypress_handler)
-			$("#name").keypress(keypress_handler)
+		previous_req_type = "{{session.req_type}}".replace("_detail","")
+		function update_view(){
+			$("#request_args").hide()
+			$("#submit").hide()
 
-			$("#host").change(function (){
-				switch ($("#typ").val())
-				{
-					case "summary":
+			next_req_type = $("#req_type").val().replace("_detail","")
+			if (previous_req_type != next_req_type) {
+				$("#request_args").val("")
+			}
+			previous_req_type = next_req_type
+			
+			switch(next_req_type)
+			{
+				case "summary":
+					$("#submit").click()
+					break;
+				default:
+					$("#submit").show()
+					$("#request_args").show()
+					if ($("#request_args").val()) {
 						$("#submit").click()
-						break;
-					case "detail":
-						if ($("#name").val()) {
-							$("#submit").click()
-						}
-						break;
-					case "prefix":
-						if ($("#prefix").val()) {
-							$("#submit").click()
-						}
-					case "prefix_detail":
-						if ($("#prefix").val()) {
-							$("#submit").click()
-						}
-						break;
-				}
-			});
-			if (document.location.pathname == "/"){
-				$("#submit").click()
+					} else {
+						$("#request_args").focus()
+					}
+					break;
 			}
 
-	});
+
+		}
+
+		$("ul li").click(function(){
+			// set hiddent field with class value
+			p = $(this).parent() // lu
+			c = p.attr("class")
+
+			$("#"+c).val($(this).attr("id"))
+
+			$("ul."+p.attr("class") + " li").removeClass('selected')
+			$(this).addClass('selected')
+
+			update_view()
+		});
+		update_view()
+			
+		$("ul.proto li#{{session.proto}}").addClass('selected')
+		$("ul.hosts li[id='{{session.hosts}}']").addClass('selected')
+		$("ul.req_type li#{{session.req_type}}").addClass('selected')
+
+		$("ul.proto li#{{session.proto}}").addClass('current')
+		$("ul.hosts li[id='{{session.hosts}}']").addClass('current')
+		$("ul.req_type li#{{session.req_type}}").addClass('current')
+
+		$("#request_args").keyup(function(event) {
+			if (event.which == 13) {
+				event.preventDefault();
+				$("#submit").click() 
+			}
+		});
+
+		$("#submit").click( function(){
+			switch ($("#req_type").val())
+			{
+				case "summary":
+					document.location = "/summary/" + $("#hosts").val() + "/" + $("#proto").val();
+					break;
+				default:
+					document.location = "/" + $("#req_type").val() + "/" + $("#hosts").val() + "/" + $("#proto").val() + "?q=" + $("#request_args").val() ;
+					break;
+			}
+			});
+
+
+		if (document.location.pathname == "/"){
+			$("#submit").click()
+		}
+});
 </script>
 <div id="page">
-	<h1>Tetaneutral.net Looking Glass</h1>
+	<div id="header">
+	<h1>Tetaneutral.net<br />Looking Glass</h1>
 	<form>
-		<select id="host">
-			<option value="gw/ipv4">gw (ipv4)</option>
-			<option value="gw/ipv6">gw (ipv6)</option>
-			<option value="h3/ipv4">h3 (ipv4)</option>
-			<option value="h3/ipv6">h3 (ipv6)</option>
-		</select>
-		<select id="typ">
-			<option value="summary">summary</option>
-			<option value="detail">detail</option>
-			<option value="prefix">prefix</option>
-			<option value="prefix_detail">prefix detail</option>
-		</select>
-
-		<input type="text" id="name" style="display:none" value="{{ name }}"></input>
-		<input type="text" id="prefix" style="display:none" value="{{ prefix }}"></input>
-		<input type="button" id="submit" value="submit"></input>
+		<input id="hosts" type="hidden" value="{{session.hosts}}" />
+		<input id="proto" type="hidden" value="{{session.proto}}" />
+		<input id="req_type" type="hidden" value="{{session.req_type}}" />
+		<ul class="proto">
+			<li id="ipv4">ipv4</li>
+			<li id="ipv6">ipv6</li>
+		</ul>
+		<ul class="hosts">
+			<li id="{{all_hosts}}">all</li>
+			{% for host in config.HOST_MAPPING %}
+				<li id="{{host}}">{{host}}</li>
+			{% endfor %}
+		</ul>
+		<ul class="req_type">
+			<li id="summary">summary</li>
+			<li id="detail">detail</li>
+			<li id="prefix">prefix</li>
+			<li id="prefix_detail">prefix (detail)</li>
+			<li id="where">where net ~ [ ... ]</li>
+			<li id="where_detail">where net ~ [ ... ] (detail)</li>
+		</ul>
+		<br />
+		<!--textarea type="text" id="request_args" style="display:none">{{session.request_args}}</textarea-->
+		<input type="text" id="request_args" style="display:none" value="{{session.request_args}}" />
+		<br />
+		<input type="button" id="submit" value="submit" />
 	</form>
+	</div>
+	<div id="content">
+	{% if errors %}
+	<div id="error">{{errors}}</div>
+	{% endif %}
 	{% block body %}{% endblock %}
+	</div>
 </div>

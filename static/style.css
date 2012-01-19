@@ -1,0 +1,154 @@
+* {
+	font-family: Arial, Helvetica, Sans-Serif;
+}
+
+html, body, ul, li { padding: 0 ; margin: 0; }
+html, body {
+	height:100% ;
+}
+a { text-decoration: none; color:blue; }
+
+h1, h2, h3 { }
+h1 { font-size: 18px; }
+h2 { font-size: 16px; }
+h3 { font-size: 14px; }
+
+td, th {
+	padding:2px 5px;
+	border-left: 1px solid #AFAFAF;
+}
+tr.odd td{
+	background: #EFEFEF;
+}
+th {
+	border-bottom: 1px solid #AFAFAF;
+	background: #AFAFAF;
+}
+table {
+	border-collapse: collapse;
+	border-top: 1px solid #AFAFAF;
+	border-right: 1px solid #AFAFAF;
+	border-bottom: 1px solid #AFAFAF;
+}
+#header {
+	float: left;
+	width: 180px;
+	padding:10px 20px;
+	height: 100%;
+	border-right: 1px solid #AFAFAF;
+	position:fixed;
+}
+#header h1{ 
+	text-align: center;
+}
+#content {
+	padding: 10px 20px;
+	margin-left: 230px;
+}
+div.summary,
+div.detail {
+	font-size:12px;
+}
+ul {
+	/* 140px */
+	border-top: 1px solid #AFAFAF;
+	margin: 0px;
+	padding: 0px;
+	margin-bottom: 10px;
+}
+
+ul li{
+	display: block;
+	margin: 0px;
+	padding: 2px 5px;
+	list-style-type: none;
+	background: #FFF;
+	border-bottom: 1px solid #AFAFAF;
+}
+ul li.current{
+	font-weight: bold;
+}
+ul li.selected{
+	background: #EFEFEF;
+}
+ul li:hover{
+	background: #AFAFAF;
+	cursor: pointer;
+}
+ul.hosts{
+	border-bottom: 1px solid #AFAFAF;
+}
+ul.hosts li{
+	width: 47px;
+	border-bottom: 0px solid #AFAFAF;
+	text-align: center;
+	display:inline-block;
+}
+ul.proto li{
+	text-align: center;
+	width: 78px;
+	display:inline-block;
+}
+
+select, input, { width: 100%;}
+input[type=text],textarea { width: 97%; font-size:10px; }
+
+
+/* POPUP */
+.jqifade{
+	position: absolute;
+	background-color: #aaaaaa;
+}
+div.jqi{
+	width: 600px;
+	position: absolute;
+	background-color: #ffffff;
+	font-size: 11px;
+	text-align: left;
+	border: solid 1px #eeeeee;
+	border-radius: 10px;
+	-moz-border-radius: 10px;
+	-webkit-border-radius: 10px;
+	padding: 7px;
+}
+div.jqi .jqicontainer{
+	font-weight: bold;
+}
+div.jqi .jqiclose{
+	position: absolute;
+	top: 4px; right: -2px;
+	width: 18px;
+	cursor: default;
+	color: #bbbbbb;
+	font-weight: bold;
+}
+div.jqi .jqimessage{
+	padding: 10px;
+	color: #444444;
+	height: 400px;
+	overflow: auto;
+}
+div.jqi .jqibuttons{
+	text-align: right;
+	padding: 5px 0 5px 0;
+	border: solid 1px #eeeeee;
+	background-color: #f4f4f4;
+}
+div.jqi button{
+	padding: 3px 10px;
+	margin: 0 10px;
+	background-color: #2F6073;
+	border: solid 1px #f4f4f4;
+	color: #ffffff;
+	font-weight: bold;
+	font-size: 12px;
+}
+div.jqi button:hover{
+	background-color: #728A8C;
+}
+div.jqi button.jqidefaultbutton{
+	background-color: #BF5E26;
+}
+.jqiwarning .jqi .jqibuttons{
+	background-color: #BF5E26;
+}
