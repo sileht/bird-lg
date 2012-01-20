@@ -26,7 +26,6 @@ def add_links(text):
 		else:
 			line = re.sub(r'AS(\d+)', r'<a href="/whois/\1" class="whois">AS\1</a>',line)
 			line = re.sub(r'(\d+\.\d+\.\d+\.\d+)', r'<a href="/whois/\1" class="whois">\1</a>',line)
-			line = re.sub(r'([0-9a-fA-F:]*)', r'<a href="/whois/\1" class="whois">\1</a>',line)
 			ret_text.append(line)
 	return "\n".join(ret_text)
 
