@@ -15,48 +15,69 @@ $( function() {
 		});
 
 		previous_req_type = "{{session.req_type}}".replace("_detail","")
-		function update_view(){
-			$("#request_args").hide()
-			$("#submit").hide()
-
+		function update_view(nopopup){
 			next_req_type = $("#req_type").val().replace("_detail","")
 			if (previous_req_type != next_req_type) {
 				$("#request_args").val("")
 			}
 			previous_req_type = next_req_type
-			
+			if (nopopup) {
+				$("#submit").click()
+				return 
+			}
 			switch(next_req_type)
 			{
 				case "summary":
 					$("#submit").click()
 					break;
 				default:
-					$("#submit").show()
-					$("#request_args").show()
-					if ($("#request_args").val()) {
-						$("#submit").click()
-					} else {
-						$("#request_args").focus()
-					}
+					txt = $("#" + $("#req_type").val() ).html().replace("...", '<input type="text" id="ipopup" name="ipopup" value="' + $("#request_args").val() + '">')
+					
+					$.prompt(txt, 
+						{ 
+						prefix: 'popup',
+						callback: function(v,m,f){
+							if ( f != undefined){
+								$("#request_args").val(f.ipopup)
+								$("#submit").click()
+							}
+						}
+					});
+
+					$("#ipopup").keyup(function(event) {
+						if (event.which == 13) {
+							event.preventDefault();
+							$("#request_args").val($("#ipopup").val())
+							$("#submit").click() 
+						}
+					});
+
+					$("#ipopup").focus()
 					break;
 			}
-
-
 		}
 
 		$("ul li").click(function(){
 			// set hiddent field with class value
 			p = $(this).parent() // lu
 			c = p.attr("class")
-
+			
 			$("#"+c).val($(this).attr("id"))
 
 			$("ul."+p.attr("class") + " li").removeClass('selected')
 			$(this).addClass('selected')
 
-			update_view()
+			switch(c){
+				case "hosts":
+				case "proto":
+					update_view(true);
+					break;
+				default:
+					update_view(false);
+					break;
+			}
 		});
-		update_view()
+		//update_view(true)
 			
 		$("ul.proto li#{{session.proto}}").addClass('selected')
 		$("ul.hosts li[id='{{session.hosts}}']").addClass('selected')
@@ -65,13 +86,6 @@ $( function() {
 		$("ul.proto li#{{session.proto}}").addClass('current')
 		$("ul.hosts li[id='{{session.hosts}}']").addClass('current')
 		$("ul.req_type li#{{session.req_type}}").addClass('current')
-
-		$("#request_args").keyup(function(event) {
-			if (event.which == 13) {
-				event.preventDefault();
-				$("#submit").click() 
-			}
-		});
 
 		$("#submit").click( function(){
 			switch ($("#req_type").val())
@@ -109,18 +123,18 @@ $( function() {
 			{% endfor %}
 		</ul>
 		<ul class="req_type">
-			<li id="summary">summary</li>
-			<li id="detail">detail</li>
-			<li id="prefix">prefix</li>
-			<li id="prefix_detail">prefix (detail)</li>
-			<li id="where">where net ~ [ ... ]</li>
-			<li id="where_detail">where net ~ [ ... ] (detail)</li>
+			<li id="summary">show protocols</li>
+			<li id="detail">show protocols ... all</li>
+			<li id="prefix">show route for ...</li>
+			<li id="prefix_detail">show route for ... all</li>
+			<li id="where">show route where net ~ [ ... ]</li>
+			<li id="where_detail">show route where net ~ [ ... ] all</li>
 		</ul>
-		<br />
-		<!--textarea type="text" id="request_args" style="display:none">{{session.request_args}}</textarea-->
-		<input type="text" id="request_args" style="display:none" value="{{session.request_args}}" />
-		<br />
-		<input type="button" id="submit" value="submit" />
+		{% if session.request_args %}
+		<p>... = {{session.request_args}}</p>
+		{% endif %}
+		<input type="hidden" id="request_args" style="display:none" value="{{session.request_args}}" />
+		<input type="button" id="submit" value="submit" style="display:none" />
 	</form>
 	</div>
 	<div id="content">

@@ -37,6 +37,7 @@ table {
 	height: 100%;
 	border-right: 1px solid #AFAFAF;
 	position:fixed;
+	font-size:11px;
 }
 #header h1{ 
 	text-align: center;
@@ -92,14 +93,23 @@ ul.proto li{
 
 select, input, { width: 100%;}
 input[type=text],textarea { width: 97%; font-size:10px; }
-
+input#submit { 
+	display:block ;
+	margin: 5px auto;	
+	width: 80px;
+}
+input#ipopup{
+	width: auto;
+}
 
 /* POPUP */
-.jqifade{
+.jqifade,
+.popupfade{
 	position: absolute;
 	background-color: #aaaaaa;
 }
-div.jqi{
+div.jqi,
+div.popup{
 	width: 600px;
 	position: absolute;
 	background-color: #ffffff;
@@ -111,10 +121,15 @@ div.jqi{
 	-webkit-border-radius: 10px;
 	padding: 7px;
 }
+div.popup{
+	width : 400px;
+}
+div.popup .popupcontainer,
 div.jqi .jqicontainer{
 	font-weight: bold;
 }
-div.jqi .jqiclose{
+div.jqi .jqiclose,
+div.popup .popupclose{
 	position: absolute;
 	top: 4px; right: -2px;
 	width: 18px;
@@ -122,18 +137,22 @@ div.jqi .jqiclose{
 	color: #bbbbbb;
 	font-weight: bold;
 }
+div.popup .popupmessage,
 div.jqi .jqimessage{
 	padding: 10px;
 	color: #444444;
 	height: 400px;
 	overflow: auto;
 }
+div.popup .popupmessage{ height:auto;}
+div.popup .popupbuttons,
 div.jqi .jqibuttons{
 	text-align: right;
 	padding: 5px 0 5px 0;
 	border: solid 1px #eeeeee;
 	background-color: #f4f4f4;
 }
+div.popup button,
 div.jqi button{
 	padding: 3px 10px;
 	margin: 0 10px;
@@ -143,12 +162,15 @@ div.jqi button{
 	font-weight: bold;
 	font-size: 12px;
 }
+div.popup button:hover,
 div.jqi button:hover{
 	background-color: #728A8C;
 }
+div.popup button.popupdefaultbutton,
 div.jqi button.jqidefaultbutton{
 	background-color: #BF5E26;
 }
+.popupwarning .popup .popupbuttons,
 .jqiwarning .jqi .jqibuttons{
 	background-color: #BF5E26;
 }

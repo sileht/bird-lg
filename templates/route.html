@@ -4,7 +4,7 @@
 <div class="detail">
 <h2>{{host}}/{{session.proto}}: {{command}}</h2>
 {% if session.request_args != expression %}
-DNS: <a href="/whois/{{session.request_args}}" class="whois">{{session.request_args}}</a> => <a href="/whois/{{ expression|replace("/32","") }}" class="whois">{{expression|replace("/32","")}}</a>
+DNS: <a href="/whois/{{session.request_args}}" class="whois">{{session.request_args}}</a> => <a href="/whois/{{ expression|replace("/32","")|replace("/128","") }}" class="whois">{{expression|replace("/32","")|replace("/128","")}}</a>
 {% endif %}
 <pre>
 {{ detail[host]|safe }}
