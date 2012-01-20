@@ -26,6 +26,7 @@ def add_links(text):
 		else:
 			line = re.sub(r'AS(\d+)', r'<a href="/whois/\1" class="whois">AS\1</a>',line)
 			line = re.sub(r'(\d+\.\d+\.\d+\.\d+)', r'<a href="/whois/\1" class="whois">\1</a>',line)
+			line = re.sub(r'([0-9a-fA-F:]*)', r'<a href="/whois/\1" class="whois">\1</a>',line)
 			ret_text.append(line)
 	return "\n".join(ret_text)
 
@@ -52,7 +53,7 @@ def inject_all_host():
 
 @app.route("/")
 def hello():
-	return render_template('index.html')
+	return redirect("/summary/%s/ipv4" % "+".join(app.config["HOST_MAPPING"].keys()) )
 
 def error_page(text):
 	return render_template('error.html', data = { "error": text } ), 500
@@ -70,7 +71,7 @@ def whois(query):
 	return jsonify(output=output, title=query)
 
 SUMMARY_UNWANTED_PROTOS = ["Kernel", "Static", "Device"]
-SUMMARY_RE_MATCH = r"(?P<name>[\w_]+)\s+(?P<proto>\w+)\s+(?P<table>\w+)\s+(?P<state>\w+)\s+(?P<since>((|\d\d\d\d-\d\d-\d\d\s)(|\d\d:)\d\d:\d\d|\w\w\w\d\d))(\s+(?P<info>.+)|)"
+SUMMARY_RE_MATCH = r"(?P<name>[\w_]+)\s+(?P<proto>\w+)\s+(?P<table>\w+)\s+(?P<state>\w+)\s+(?P<since>((|\d\d\d\d-\d\d-\d\d\s)(|\d\d:)\d\d:\d\d|\w\w\w\d\d))($|\s+(?P<info>.*))"
 
 @app.route("/summary/<hosts>")
 @app.route("/summary/<hosts>/<proto>")
