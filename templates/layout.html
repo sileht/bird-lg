@@ -31,8 +31,15 @@ $( function() {
 					$("#submit").click()
 					break;
 				default:
-					txt = $("#" + $("#req_type").val() ).html().replace("...", '<input type="text" id="ipopup" name="ipopup" value="' + $("#request_args").val() + '">')
-					
+					menu_html = ""
+					data = {{session.history|tojson|safe}}[next_req_type]
+					for (var item in data){
+						menu_html += "<li>" + data[item] + "</li>"
+					}
+					txt = $("#" + $("#req_type").val() ).html().replace("...", 
+						'<input type="text" id="ipopup" name="ipopup" value="' + $("#request_args").val() + '">') +
+						'<br />History:' + 
+						'<ul id="popup_menu">' + menu_html + '</ul>'
 					$.prompt(txt, 
 						{ 
 						prefix: 'popup',
@@ -43,7 +50,10 @@ $( function() {
 							}
 						}
 					});
-
+					$("#popup_menu li").click(function(event){
+						$("#ipopup").val($(this).html())
+						$("#ipopup").focus()
+					});
 					$("#ipopup").keyup(function(event) {
 						if (event.which == 13) {
 							event.preventDefault();
@@ -57,7 +67,7 @@ $( function() {
 			}
 		}
 
-		$("ul li").click(function(){
+		$("#menu ul li").click(function(){
 			// set hiddent field with class value
 			p = $(this).parent() // lu
 			c = p.attr("class")
@@ -107,8 +117,8 @@ $( function() {
 </script>
 <div id="page">
 	<div id="header">
-	<h1>Tetaneutral.net<br />Looking Glass</h1>
-	<form>
+	<h1>{{config.DOMAIN|capitalize}}<br />Looking Glass</h1>
+	<form id="menu">
 		<input id="hosts" type="hidden" value="{{session.hosts}}" />
 		<input id="proto" type="hidden" value="{{session.proto}}" />
 		<input id="req_type" type="hidden" value="{{session.req_type}}" />
@@ -123,6 +133,7 @@ $( function() {
 			{% endfor %}
 		</ul>
 		<ul class="req_type">
+			<li id="traceroute">traceroute ...</li>
 			<li id="summary">show protocols</li>
 			<li id="detail">show protocols ... all</li>
 			<li id="prefix">show route for ...</li>

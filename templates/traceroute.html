@@ -1,0 +1,7 @@
+{% extends "layout.html" %}
+{% block body %}
+{% for host in infos %}
+<h2 id="traceroute_cmd_{{host}}">{{host}}/{{session.proto}}: traceroute {{session.request_args}}</h3>
+<div class="detail">{{infos[host]|safe}}</div>
+{% endfor %}
+{% endblock %}

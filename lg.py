@@ -4,6 +4,7 @@ import sys
 import os
 import subprocess
 import re
+import urllib2
 
 from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve
 
@@ -13,6 +14,13 @@ from flask import Flask, render_template, jsonify, redirect, session, request
 app = Flask(__name__)
 app.config.from_pyfile('lg.cfg')
 
+
+#def same_origin_policy_hander(resp):
+#	resp.headers["Access-Control-Allow-Origin"] =  "*"
+#	return resp
+#
+#app.after_request(same_origin_policy_hander)
+#
 
 def add_links(text):
 	if type(text) in [ str, unicode ]:
@@ -24,6 +32,7 @@ def add_links(text):
 			line.strip().startswith("Neighbor AS:") :
 			ret_text.append(re.sub(r'(\d+)',r'<a href="/whois/\1" class="whois">\1</a>',line))
 		else:
+			line = re.sub(r'([a-zA-Z0-9\-]*\.([a-zA-Z]{2,3}){1,2})(\s|$)', r'<a href="/whois/\1" class="whois">\1</a>',line)
 			line = re.sub(r'AS(\d+)', r'<a href="/whois/\1" class="whois">AS\1</a>',line)
 			line = re.sub(r'(\d+\.\d+\.\d+\.\d+)', r'<a href="/whois/\1" class="whois">\1</a>',line)
 			ret_text.append(line)
@@ -36,6 +45,11 @@ def set_session(req_type, hosts, proto, request_args):
 		"proto": proto,
 		"request_args": request_args,
 	})
+	history = session.get("history", {})
+	req_hist = history.get(req_type, [])
+	if request_args and request_args not in req_hist: req_hist.insert(0, request_args)
+	if not history: session["history"] = {}
+	session["history"][req_type] = req_hist[:10]
 
 def bird_command(host, proto, command):
 	conf = app.config["HOST_MAPPING"].get(host, None)
@@ -115,6 +129,21 @@ def detail(hosts, proto):
 			detail[host] = { "status": "bird error: %s" % "\n".join(res), "description": "" }
 	
 	return render_template('detail.html', detail=detail, command=command)
+
+@app.route("/traceroute/<hosts>/<proto>")
+def traceroute(hosts, proto):
+	q = request.args.get('q', '')
+	set_session("traceroute", hosts, proto, q)
+
+	infos = {}
+	for host in hosts.split("+"):
+		url = "http://%s.%s:%s/traceroute%s?q=%s" % ( host, app.config["DOMAIN"], app.config["HOST_MAPPING"].get(host).get("traceroute","5000"), (proto == "ipv6" and "6" or ""), q)
+		try:
+			f = urllib2.urlopen(url)
+			infos[host] = add_links(f.read())
+		except IOError:
+			infos[host] = "Failed retreive url: %s" % url
+	return render_template('traceroute.html', infos=infos)
 
 @app.route("/where/<hosts>/<proto>")
 def show_route_where(hosts, proto):

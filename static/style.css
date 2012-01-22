@@ -66,6 +66,9 @@ ul li{
 	background: #FFF;
 	border-bottom: 1px solid #AFAFAF;
 }
+ul#popup_menu li{
+	font-weight: normal;
+}
 ul li.current{
 	font-weight: bold;
 }
