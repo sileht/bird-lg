@@ -39,6 +39,7 @@ def add_links(text):
 	return "\n".join(ret_text)
 
 def set_session(req_type, hosts, proto, request_args):
+	session.permanent = True
 	session.update( {
 		"req_type": req_type,
 		"hosts": hosts,
