@@ -68,7 +68,6 @@ def bird_proxy(host, proto, service, query):
 		try:
 			f = urlopen(url)
 			resultat = f.read()
-			app.logger.debug(resultat)
 			status = True # retreive remote status
 		except IOError:
 			resultat = "Failed retreive url: %s" % url
