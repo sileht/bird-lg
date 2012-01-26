@@ -5,7 +5,7 @@ import os
 import subprocess
 import re
 from urllib2 import urlopen
-from urllib import quote
+from urllib import quote, unquote
 
 from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve
 
@@ -159,6 +159,10 @@ def traceroute(hosts, proto):
 		infos[host] = add_links(resultat)
 	return render_template('traceroute.html', infos=infos)
 
+@app.route("/adv/<hosts>/<proto>")
+def show_route_filter(hosts, proto):
+	return show_route("", hosts, proto)
+
 @app.route("/where/<hosts>/<proto>")
 def show_route_where(hosts, proto):
 	return show_route("where", hosts, proto)
@@ -176,12 +180,14 @@ def show_route_for_detail(hosts, proto):
 	return show_route("prefix_detail", hosts, proto)
 
 def show_route(req_type, hosts, proto):
-	expression = request.args.get('q', '')
+	expression = unquote(request.args.get('q', ''))
 	set_session(req_type, hosts, proto, expression)
 
 	all = (req_type.endswith("detail") and " all" or "" )
 
-	if req_type.startswith("where"):
+	if not req_type:
+		command = "show route " + expression
+	elif req_type.startswith("where"):
 		command = "show route where net ~ [ " + expression + " ]" + all
 	else:
 		mask = ""
