@@ -77,7 +77,8 @@ def BirdSocketSingleton(host, port):
 
 class BirdSocket:
 
-	def __init__(self, host, port):
+	def __init__(self, host="", port="", file=""):
+		self.__file = file
 		self.__host = host
 		self.__port = port
 		self.__sock = None
@@ -85,9 +86,17 @@ class BirdSocket:
 	def __connect(self):
 		if self.__sock:  return 
 
-		self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		self.__sock.settimeout(3.0)
-		self.__sock.connect((self.__host, self.__port))
+		if not file:
+			self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			self.__sock.settimeout(3.0)
+			self.__sock.connect((self.__host, self.__port))
+		else:
+			self.__sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+			self.__sock.settimeout(3.0)
+			self.__sock.connect(self.__file)
+
+		# read welcome message
+		self.__sock.recv(1024)
 
 	def close(self):
 		if self.__sock:
@@ -99,14 +108,14 @@ class BirdSocket:
 		try:
 			self.__connect()
 			self.__sock.send(cmd + "\n")
-			return self.__read()
+			data = self.__read()
+			return data
 		except socket.error:
 			why = sys.exc_info()[1]
 			self.close()
 			return False, "Bird connection problem: %s" % why
 
 	def __read(self):
-
 		code = "7000" # Not used  in bird
 		parsed_string = ""
 		lastline = ""
