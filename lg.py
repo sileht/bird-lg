@@ -4,7 +4,8 @@ import sys
 import os
 import subprocess
 import re
-import urllib2
+from urllib2 import urlopen
+from urllib import quote
 
 from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve
 
@@ -52,22 +53,35 @@ def set_session(req_type, hosts, proto, request_args):
 	if not history: session["history"] = {}
 	session["history"][req_type] = req_hist[:10]
 
-def bird_command(host, proto, command):
-	conf = app.config["HOST_MAPPING"].get(host, None)
-	port = conf.get(proto)
-	if not conf or not port:
+def bird_command(host, proto, query):
+	return bird_proxy(host, proto, "bird", query)
+
+def bird_proxy(host, proto, service, query):
+	path = ""
+	if proto == "ipv6": path = service + "6"
+	elif proto == "ipv4": path = service
+	port = app.config["PROXY"].get(host,"")
+	if not port or not path:
 		return False, "Host/Proto not allowed"
 	else:
-		b = BirdSocketSingleton(host, port)
-		return b.cmd(command)
+		url = "http://%s.%s:%d/%s?q=%s" % (host, app.config["DOMAIN"], port, path, quote(query))
+		try:
+			f = urlopen(url)
+			resultat = f.read()
+			app.logger.debug(resultat)
+			status = True # retreive remote status
+		except IOError:
+			resultat = "Failed retreive url: %s" % url
+			status = False
+		return status, resultat
 		
 @app.context_processor
 def inject_all_host():
-	return dict(all_hosts="+".join(app.config["HOST_MAPPING"].keys()))
+	return dict(all_hosts="+".join(app.config["PROXY"].keys()))
 
 @app.route("/")
 def hello():
-	return redirect("/summary/%s/ipv4" % "+".join(app.config["HOST_MAPPING"].keys()) )
+	return redirect("/summary/%s/ipv4" % "+".join(app.config["PROXY"].keys()) )
 
 def error_page(text):
 	return render_template('error.html', data = { "error": text } ), 500
@@ -138,12 +152,8 @@ def traceroute(hosts, proto):
 
 	infos = {}
 	for host in hosts.split("+"):
-		url = "http://%s.%s:%s/traceroute%s?q=%s" % ( host, app.config["DOMAIN"], app.config["HOST_MAPPING"].get(host).get("traceroute","5000"), (proto == "ipv6" and "6" or ""), q)
-		try:
-			f = urllib2.urlopen(url)
-			infos[host] = add_links(f.read())
-		except IOError:
-			infos[host] = "Failed retreive url: %s" % url
+		status, resultat = bird_proxy(host, proto, "traceroute", q)
+		infos[host] = add_links(resultat)
 	return render_template('traceroute.html', infos=infos)
 
 @app.route("/where/<hosts>/<proto>")

@@ -3,7 +3,15 @@ bird-lg depend on :
  - python-flask 
  - python-dnspython
 
-It use TCP socket to talk with bird
 
-To convert unix socket to tcp-socket you can use:
-# socat UNIX-CONNECT:/var/run/bird.ctl TCP-LISTEN:9994,reuseaddr,fork,range=XXX.XXX.XXX.XXX/32
+On all bird nodes:
+	fill the config file lg-proxy.cfg by list all ips that can acces to the proxy
+	and start "python lg-proxy.py"
+
+
+On frontend:
+	fill config file lg.cfg by list all bird nodes
+	and start "python lg.py"
+
+
+Each service can by embeded in any webserver by follow regular python-flask configuration
