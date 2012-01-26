@@ -39,20 +39,15 @@ def bird():
 
     if request.path == "/bird": b = BirdSocket(file="/var/run/bird.ctl")
     elif request.path == "/bird6": b = BirdSocket(file="/var/run/bird6.ctl")
-    else: return "No bird socket selected", 700
+    else: return "No bird socket selected"
 
     query = request.args.get("q","")
     query = unquote(query)
 
     status, result = b.cmd(query)
     b.close()
-
-    app.logger.debug(result)
-
-    if status: status = 200
-    else: status = 700
-
-    return result, status
+    # FIXME: use status
+    return result
 	
 
 if __name__ == "__main__":
