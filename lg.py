@@ -161,7 +161,7 @@ def traceroute(hosts, proto):
 
 @app.route("/adv/<hosts>/<proto>")
 def show_route_filter(hosts, proto):
-	return show_route("", hosts, proto)
+	return show_route("adv", hosts, proto)
 
 @app.route("/where/<hosts>/<proto>")
 def show_route_where(hosts, proto):
@@ -185,7 +185,7 @@ def show_route(req_type, hosts, proto):
 
 	all = (req_type.endswith("detail") and " all" or "" )
 
-	if not req_type:
+	if req_type.startswith("adv"):
 		command = "show route " + expression
 	elif req_type.startswith("where"):
 		command = "show route where net ~ [ " + expression + " ]" + all
