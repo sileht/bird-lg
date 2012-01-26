@@ -110,7 +110,7 @@ def summary(hosts, proto="ipv4"):
 	for host in hosts.split("+"):
 		ret, res = bird_command(host, proto, command)
 		res = res.split("\n")
-		if ret:
+		if len(res) > 1: #if ret:
 			data = []
 			for line in res[1:]:
 				line = line.strip()
@@ -123,7 +123,7 @@ def summary(hosts, proto="ipv4"):
 
 			summary[host] = data 
 		else:
-			summary[host] = { "error" : res }
+			summary[host] = { "error" : "\n".join(res) }
 
 	return render_template('summary.html', summary=summary, command=command)
 
@@ -137,7 +137,7 @@ def detail(hosts, proto):
 	for host in hosts.split("+"):
 		ret, res = bird_command(host, proto, command)
 		res = res.split("\n")
-		if ret:
+		if len(res) > 1 : #if ret:
 			detail[host] = { "status": res[1], "description": add_links(res[2:]) }
 		else:
 			detail[host] = { "status": "bird error: %s" % "\n".join(res), "description": "" }
@@ -203,7 +203,7 @@ def show_route(req_type, hosts, proto):
 		ret, res = bird_command(host, proto, command)
 
 		res = res.split("\n")
-		if ret:
+		if len(res) > 1 : #if ret:
 			detail[host] = add_links(res)
 		else:
 			detail[host] = "bird error: %s" % "\n".join(res)
