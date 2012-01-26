@@ -25,7 +25,7 @@ def traceroute():
     query = request.args.get("q","")
     query = unquote(query)
 
-    command = [ 'traceroute', o, '-A', '-q1', '-w2', query]
+    command = [ 'traceroute', o, '-A', '-q1', '-w1', query]
     result = subprocess.Popen( command , stdout=subprocess.PIPE).communicate()[0].decode('utf-8', 'ignore').replace("\n","<br>")
     
     return result
