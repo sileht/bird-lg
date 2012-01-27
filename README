@@ -1,6 +1,6 @@
 
 bird-lg depend on :
- - python-flask 
+ - python-flask  >= 0.8
  - python-dnspython
 
 
@@ -15,3 +15,6 @@ On frontend:
 
 
 Each service can by embeded in any webserver by follow regular python-flask configuration
+
+
+Only tested with bird 1.2.5

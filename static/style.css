@@ -5,6 +5,7 @@
 html, body, ul, li { padding: 0 ; margin: 0; }
 html, body {
 	height:100% ;
+	position:relative;
 }
 a { text-decoration: none; color:blue; }
 
@@ -105,6 +106,12 @@ input#ipopup{
 	width: auto;
 }
 
+#footer{
+	position:fixed;
+	bottom:0px;
+	left:0px;
+	font-size: 10px;
+}
 .error{
 	font-weight:normal;
 	color:red;
