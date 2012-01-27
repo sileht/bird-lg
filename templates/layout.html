@@ -15,7 +15,7 @@ $( function() {
 		});
 
 		previous_req_type = "{{session.req_type}}".replace("_detail","")
-		function update_view(nopopup){
+		function update_view(nopopup, msg){
 			next_req_type = $("#req_type").val().replace("_detail","")
 			if (previous_req_type != next_req_type) {
 				$("#request_args").val("")
@@ -40,6 +40,11 @@ $( function() {
 						'<input type="text" id="ipopup" name="ipopup" value="' + $("#request_args").val() + '">') +
 						'<br />History:' + 
 						'<ul id="popup_menu">' + menu_html + '</ul>'
+
+					if ( msg != undefined && msg != "" )
+						txt += '<br /><span class="error">Error: ' + msg + '</span>'
+
+
 					$.prompt(txt, 
 						{ 
 						prefix: 'popup',
@@ -104,6 +109,10 @@ $( function() {
 					document.location = "/summary/" + $("#hosts").val() + "/" + $("#proto").val();
 					break;
 				default:
+					if (!$.trim($("#request_args").val())) {
+						update_view(false, "Missing arguments")
+						return
+					}
 					document.location = "/" + $("#req_type").val() + "/" + $("#hosts").val() + "/" + $("#proto").val() + "?q=" + $("#request_args").val() ;
 					break;
 			}

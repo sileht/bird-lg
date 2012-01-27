@@ -10,7 +10,7 @@ from urllib import quote, unquote
 from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve
 
 from bird import BirdSocketSingleton
-from flask import Flask, render_template, jsonify, redirect, session, request
+from flask import Flask, render_template, jsonify, redirect, session, request, abort
 
 app = Flask(__name__)
 app.config.from_pyfile('lg.cfg')
@@ -92,6 +92,7 @@ def error_page(text):
 
 @app.route("/whois/<query>")
 def whois(query):
+	if not query.strip(): abort(404)
 	try:
 		asnum = int(query)
 		query = "as%d"%asnum
@@ -134,6 +135,8 @@ def summary(hosts, proto="ipv4"):
 @app.route("/detail/<hosts>/<proto>")
 def detail(hosts, proto):
 	name = request.args.get('q', '')
+	if not name.strip(): abort(404)
+
 	set_session("detail", hosts, proto, name)
 	command = "show protocols all %s" % name
 
@@ -151,6 +154,7 @@ def detail(hosts, proto):
 @app.route("/traceroute/<hosts>/<proto>")
 def traceroute(hosts, proto):
 	q = request.args.get('q', '')
+	if not q.strip(): abort(404)
 	set_session("traceroute", hosts, proto, q)
 
 	infos = {}
@@ -181,6 +185,7 @@ def show_route_for_detail(hosts, proto):
 
 def show_route(req_type, hosts, proto):
 	expression = unquote(request.args.get('q', ''))
+	if not expression.strip(): abort(404)
 	set_session(req_type, hosts, proto, expression)
 
 	all = (req_type.endswith("detail") and " all" or "" )

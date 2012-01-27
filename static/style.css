@@ -105,6 +105,11 @@ input#ipopup{
 	width: auto;
 }
 
+.error{
+	font-weight:normal;
+	color:red;
+}
+
 /* POPUP */
 .jqifade,
 .popupfade{
