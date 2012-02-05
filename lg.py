@@ -46,7 +46,7 @@ def add_links(text):
 			line.strip().startswith("Neighbor AS:") :
 			ret_text.append(re.sub(r'(\d+)',r'<a href="/whois/\1" class="whois">\1</a>',line))
 		else:
-			line = re.sub(r'([a-zA-Z0-9\-]*\.([a-zA-Z]{2,3}){1,2})(\s|$)', r'<a href="/whois/\1" class="whois">\1</a>\2',line)
+			line = re.sub(r'([a-zA-Z0-9\-]*\.([a-zA-Z]{2,3}){1,2})(\s|$)', r'<a href="/whois/\1" class="whois">\1</a>',line)
 			line = re.sub(r'AS(\d+)', r'<a href="/whois/\1" class="whois">AS\1</a>',line)
 			line = re.sub(r'(\d+\.\d+\.\d+\.\d+)', r'<a href="/whois/\1" class="whois">\1</a>',line)
 			hosts = "/".join(request.path.split("/")[2:])
@@ -55,19 +55,24 @@ def add_links(text):
 			ret_text.append(line)
 	return "\n".join(ret_text)
 
-def set_session(req_type, hosts, proto, request_args):
+def set_session(request_type, hosts, proto, request_args):
 	session.permanent = True
 	session.update( {
-		"req_type": req_type,
+		"request_type": request_type,
 		"hosts": hosts,
 		"proto": proto,
 		"request_args": request_args,
 	})
-	history = session.get("history", {})
-	req_hist = history.get(req_type, [])
-	if request_args and request_args not in req_hist: req_hist.insert(0, request_args)
-	if not history: session["history"] = {}
-	session["history"][req_type] = req_hist[:10]
+	history = session.get("history", [])
+
+	# erase old format history
+	if type(history) != type(list()): history = []
+
+	t = (hosts, proto, request_type, request_args)
+	if t in history:
+		del history[history.index(t)]
+	history.insert(0, t)
+	session["history"] = history[:20]
 
 def bird_command(host, proto, query):
 	return bird_proxy(host, proto, "bird", query)
@@ -91,6 +96,23 @@ def bird_proxy(host, proto, service, query):
 		return status, resultat
 		
 @app.context_processor
+def inject_commands():
+	commands = [
+			("traceroute","traceroute ..."),
+			("summary","show protocols"),
+			("detail","show protocols ... all"),
+			("prefix","show route for ..."),
+			("prefix_detail","show route for ... all"),
+			("where","show route where net ~ [ ... ]"),
+			("where_detail","show route where net ~ [ ... ] all"),
+			("adv","show route ..."),
+		]
+	commands_dict = {}
+	for id, text in commands:
+		commands_dict[id] = text
+	return dict(commands=commands, commands_dict=commands_dict)
+
+@app.context_processor
 def inject_all_host():
 	return dict(all_hosts="+".join(app.config["PROXY"].keys()))
 
@@ -99,12 +121,19 @@ def hello():
 	return redirect("/summary/%s/ipv4" % "+".join(app.config["PROXY"].keys()) )
 
 def error_page(text):
-	return render_template('error.html', data = { "error": text } ), 500
+	return render_template('error.html', error = text ), 500
 
+@app.errorhandler(400)
+def page_not_found(e):
+	    return render_template('error.html', warning="The server could not understand the request"), 400
+
+@app.errorhandler(404)
+def page_not_found(e):
+	    return render_template('error.html', warning="The requested URL was not found on the server."), 404
 
 @app.route("/whois/<query>")
 def whois(query):
-	if not query.strip(): abort(404)
+	if not query.strip(): abort(400)
 	try:
 		asnum = int(query)
 		query = "as%d"%asnum
@@ -124,6 +153,7 @@ def summary(hosts, proto="ipv4"):
 	command = "show protocols"
 	
 	summary = {}
+	error = []
 	for host in hosts.split("+"):
 		ret, res = bird_command(host, proto, command)
 		res = res.split("\n")
@@ -140,34 +170,42 @@ def summary(hosts, proto="ipv4"):
 
 			summary[host] = data 
 		else:
-			summary[host] = { "error" : "\n".join(res) }
+			error.append("%s: bird command failed with error, %s" % (host,"\n".join(res)))
 
-	return render_template('summary.html', summary=summary, command=command)
+	return render_template('summary.html', summary=summary, command=command, error="<br>".join(error))
 
 @app.route("/detail/<hosts>/<proto>")
 def detail(hosts, proto):
 	name = request.args.get('q', '')
-	if not name.strip(): abort(404)
+	if not name.strip(): abort(400)
 
 	set_session("detail", hosts, proto, name)
 	command = "show protocols all %s" % name
 
 	detail = {}
+	error = []
 	for host in hosts.split("+"):
 		ret, res = bird_command(host, proto, command)
 		res = res.split("\n")
 		if len(res) > 1 : #if ret:
 			detail[host] = { "status": res[1], "description": add_links(res[2:]) }
 		else:
-			detail[host] = { "status": "bird error: %s" % "\n".join(res), "description": "" }
+			error.append("%s: bird command failed with error, %s" % (host,"\n".join(res)))
 	
-	return render_template('detail.html', detail=detail, command=command)
+	return render_template('detail.html', detail=detail, command=command, error="<br>".join(error))
 
 @app.route("/traceroute/<hosts>/<proto>")
 def traceroute(hosts, proto):
 	q = request.args.get('q', '')
-	if not q.strip(): abort(404)
+	if not q.strip(): abort(400)
 	set_session("traceroute", hosts, proto, q)
+
+	if proto == "ipv6" and not ipv6_is_valid(q):
+		try: q = resolve(q, "AAAA")
+		except:	return error_page("%s is unresolvable or invalid for %s" % (q, proto))
+	if proto == "ipv4" and not ipv4_is_valid(q):
+		try: q = resolve(q, "A")
+		except:	return error_page("%s is unresolvable or invalid for %s" % (q, proto))
 
 	infos = {}
 	for host in hosts.split("+"):
@@ -195,16 +233,16 @@ def show_route_for(hosts, proto):
 def show_route_for_detail(hosts, proto):
 	return show_route("prefix_detail", hosts, proto)
 
-def show_route(req_type, hosts, proto):
+def show_route(request_type, hosts, proto):
 	expression = unquote(request.args.get('q', ''))
-	if not expression.strip(): abort(404)
-	set_session(req_type, hosts, proto, expression)
+	if not expression.strip(): abort(400)
+	set_session(request_type, hosts, proto, expression)
 
-	all = (req_type.endswith("detail") and " all" or "" )
+	all = (request_type.endswith("detail") and " all" or "" )
 
-	if req_type.startswith("adv"):
+	if request_type.startswith("adv"):
 		command = "show route " + expression
-	elif req_type.startswith("where"):
+	elif request_type.startswith("where"):
 		command = "show route where net ~ [ " + expression + " ]" + all
 	else:
 		mask = ""
@@ -214,18 +252,19 @@ def show_route(req_type, hosts, proto):
 		if not mask and proto == "ipv4" : mask = "32"
 		if not mask and proto == "ipv6" : mask = "128"
 		if not mask_is_valid(mask):
-			return error_page("mask %s invalid" % mask)
+			return error_page("mask %s is invalid" % mask)
 		if proto == "ipv6" and not ipv6_is_valid(expression):
 			try: expression = resolve(expression, "AAAA")
-			except:	return error_page("%s unresolvable/invalid" % expression)
+			except:	return error_page("%s is unresolvable or invalid for %s" % (expression, proto))
 		if proto == "ipv4" and not ipv4_is_valid(expression):
 			try: expression = resolve(expression, "A")
-			except:	return error_page("%s unresolvable/invalid" % expression)
+			except:	return error_page("%s is unresolvable or invalid for %s" % (expression, proto))
 
 		if mask: expression += "/" + mask
 		command = "show route for " + expression + all
 
 	detail = {}
+	error = []
 	for host in hosts.split("+"):
 		ret, res = bird_command(host, proto, command)
 
@@ -233,9 +272,9 @@ def show_route(req_type, hosts, proto):
 		if len(res) > 1 : #if ret:
 			detail[host] = add_links(res)
 		else:
-			detail[host] = "bird error: %s" % "\n".join(res)
+			error.append("%s: bird command failed with error, %s" % (host,"\n".join(res)))
 	
-	return render_template('route.html', detail=detail, command=command, expression=expression )
+	return render_template('route.html', detail=detail, command=command, expression=expression, error="<br>".join(error) )
 
 app.secret_key = app.config["SESSION_KEY"]
 app.debug = True

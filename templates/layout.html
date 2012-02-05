@@ -1,170 +1,121 @@
 <!doctype html>
-<title>Tetaneutral.net looking glass</title>
-<meta charset="UTF-8">
-<link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
-<script type="text/javascript" src="{{url_for('static', filename='jquery.js') }}"></script>
-<script type="text/javascript" src="{{url_for('static', filename='jquery-impromptu.3.2.min.js') }}"></script>
-<script type="text/javascript">
-$( function() {
-		$("a.whois").click(function (event){
-			event.preventDefault();
-			link = $(this).attr('href')
-			$.getJSON(link, function(data) {
-				$.prompt("<h3>" + data.title + "</h3>" + data.output,{ show:'slideDown' });
-			});
-		});
+<html lang="en">
+	<title>Tetaneutral.net looking glass</title>
+	<head>
+		<meta charset="UTF-8">
+		<link rel=stylesheet type=text/css href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+		<link rel=stylesheet type=text/css href="{{ url_for('static', filename='css/bootstrap-responsive.min.css') }}">
+		<link rel=stylesheet type=text/css href="{{ url_for('static', filename='css/docs.css') }}">
+	</head>
+	<body>
+		<div class="navbar navbar-fixed-top">
+			<div class="navbar-inner">
+				<div class="container-fluid">
+					<a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
 
-		previous_req_type = "{{session.req_type}}".replace("_detail","")
-		function update_view(nopopup, msg){
-			next_req_type = $("#req_type").val().replace("_detail","")
-			if (previous_req_type != next_req_type) {
-				$("#request_args").val("")
-			}
-			previous_req_type = next_req_type
-			if (nopopup) {
-				$("#submit").click()
-				return 
-			}
-			switch(next_req_type)
-			{
-				case "summary":
-					$("#submit").click()
-					break;
-				default:
-					menu_html = ""
-					data = {{session.history|tojson|safe}}[next_req_type]
-					for (var item in data){
-						menu_html += "<li>" + data[item] + "</li>"
-					}
-					txt = $("#" + $("#req_type").val() ).html().replace("...", 
-						'<input type="text" id="ipopup" name="ipopup" value="' + $("#request_args").val() + '">') +
-						'<br />History:' + 
-						'<ul id="popup_menu">' + menu_html + '</ul>'
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+					</a>
+					<a class="brand" href="/">{{config.DOMAIN|capitalize}} / Looking Glass</a>
+					<div class="navbar nav-collapse">
+						<ul class="nav nav-pills">
+							<li class="navbar-text">Nodes:&nbsp;&nbsp;</li>
+							<li class="hosts"><a id="{{all_hosts}}" href="#">all</a></li>
 
-					if ( msg != undefined && msg != "" )
-						txt += '<br /><span class="error">Error: ' + msg + '</span>'
+							{% for host in config.PROXY %}
+							<li class="hosts"><a id="{{host}}" href="#">{{host}}</a></li>
+							{% endfor %}
 
+							<li class="divider-vertical"></li>
 
-					$.prompt(txt, 
-						{ 
-						prefix: 'popup',
-						callback: function(v,m,f){
-							if ( f != undefined){
-								$("#request_args").val(f.ipopup)
-								$("#submit").click()
-							}
-						}
-					});
-					$("#popup_menu li").click(function(event){
-						$("#ipopup").val($(this).html())
-						$("#ipopup").focus()
-					});
-					$("#ipopup").keyup(function(event) {
-						if (event.which == 13) {
-							event.preventDefault();
-							$("#request_args").val($("#ipopup").val())
-							$("#submit").click() 
-						}
-					});
+							<li class="navbar-text">Protocols:&nbsp;&nbsp;</li>
+							<li class="proto"><a id="ipv4" href="#">ipv4</a></li>
+							<li class="proto"><a id="ipv6" href="#">ipv6</a></li>
+							<li class="divider-vertical"></li>
 
-					$("#ipopup").focus()
-					break;
-			}
-		}
+							<li class="dropdown request_type">
+							<a href="#"
+								class="dropdown-toggle"
+								data-toggle="dropdown">
+								Show protocols
+								<b class="caret"></b>
+							</a>
 
-		$("#menu ul li").click(function(){
-			// set hiddent field with class value
-			p = $(this).parent() // lu
-			c = p.attr("class")
-			
-			$("#"+c).val($(this).attr("id"))
+							<ul class="dropdown-menu">
+								{% for id, text in commands %}
+								<li><a id="{{id}}" href="#">{{text}}</a></li>
+								{% endfor %}
+							</ul>
+							</li>
+							<form class="navbar-search pull-left" action="javascript:;">
+								<input type="text" style="width:250px;" class="request_args search-query" placeholder="...">
+							</form>
+							<li class="navbar-text"></li>
 
-			$("ul."+p.attr("class") + " li").removeClass('selected')
-			$(this).addClass('selected')
+						</ul>
 
-			switch(c){
-				case "hosts":
-				case "proto":
-					update_view(true);
-					break;
-				default:
-					update_view(false);
-					break;
-			}
-		});
-		//update_view(true)
-			
-		$("ul.proto li#{{session.proto}}").addClass('selected')
-		$("ul.hosts li[id='{{session.hosts}}']").addClass('selected')
-		$("ul.req_type li#{{session.req_type}}").addClass('selected')
+						<p class="navbar-text pull-right"></p>
+					</div><!--/.nav-collapse -->
+				</div>
+			</div>
+		</div>
+		<div class="container-fluid">
+			<div class="row-fluid">
+				<div class="span8">
+					{% if warning %}
+					<div class="alert alert-warning">{{warning}}</div>
+					{% endif %}
+					{% if error %}
+					<div class="alert alert-error">{{error}}</div>
+					{% endif %}
 
-		$("ul.proto li#{{session.proto}}").addClass('current')
-		$("ul.hosts li[id='{{session.hosts}}']").addClass('current')
-		$("ul.req_type li#{{session.req_type}}").addClass('current')
+					{% block body %}{% endblock %}
 
-		$("#submit").click( function(){
-			switch ($("#req_type").val())
-			{
-				case "summary":
-					document.location = "/summary/" + $("#hosts").val() + "/" + $("#proto").val();
-					break;
-				default:
-					if (!$.trim($("#request_args").val())) {
-						update_view(false, "Missing arguments")
-						return
-					}
-					document.location = "/" + $("#req_type").val() + "/" + $("#hosts").val() + "/" + $("#proto").val() + "?q=" + $("#request_args").val() ;
-					break;
-			}
-			});
+				</div>
+				<div class="span4">
+					<div class="well" style="padding: 8px 0;">
+						<ul class="nav nav-list history">
+							<li class="nav-header">Request history</li>
+							{% for hosts, proto, request_type, request_args in session.history %}
+							<li{% if loop.first %} class="active"{% endif %}>
+							<a href="/{{ [request_type, hosts, proto]|join("/") }}{% if request_args %}?q={{request_args}}{% endif %}">
+								{{hosts}}/{{proto}}: {{ commands_dict[request_type]|replace("...", request_args) }}
+							</a>
+							</li>
+							{% endfor %}
+						</ul>
+					</div>
+				</div>
+			</div>
 
+			<div class="footer">
+			<p>bird looking glass, <a href="https://github.com/sileht/bird-lg/">source code</a> under GPL 3.0, powered by <a href="http://flask.pocoo.org">Flask</a>, <a href="http://jquery.com/">jQuery</a> and <a href="http://twitter.github.com/bootstrap/">Bootstrap</a></p>
+			</div>
 
-		if (document.location.pathname == "/"){
-			$("#submit").click()
-		}
-});
-</script>
-<div id="page">
-	<div id="header">
-	<h1>{{config.DOMAIN|capitalize}}<br />Looking Glass</h1>
-	<form id="menu">
-		<input id="hosts" type="hidden" value="{{session.hosts}}" />
-		<input id="proto" type="hidden" value="{{session.proto}}" />
-		<input id="req_type" type="hidden" value="{{session.req_type}}" />
-		<ul class="proto">
-			<li id="ipv4">ipv4</li>
-			<li id="ipv6">ipv6</li>
-		</ul>
-		<ul class="hosts">
-			<li id="{{all_hosts}}">all</li>
-			{% for host in config.PROXY %}
-				<li id="{{host}}">{{host}}</li>
-			{% endfor %}
-		</ul>
-		<ul class="req_type">
-			<li id="traceroute">traceroute ...</li>
-			<li id="summary">show protocols</li>
-			<li id="detail">show protocols ... all</li>
-			<li id="prefix">show route for ...</li>
-			<li id="prefix_detail">show route for ... all</li>
-			<li id="where">show route where net ~ [ ... ]</li>
-			<li id="where_detail">show route where net ~ [ ... ] all</li>
-			<li id="adv">show route ...</li>
-		</ul>
-		{% if session.request_args %}
-		<p>... = {{session.request_args}}</p>
-		{% endif %}
-		<input type="hidden" id="request_args" style="display:none" value="{{session.request_args}}" />
-		<input type="button" id="submit" value="submit" style="display:none" />
-	</form>
-	</div>
-	<div id="content">
-	{% if errors %}
-	<div id="error">{{errors}}</div>
-	{% endif %}
-	{% block body %}{% endblock %}
-	</div>
-</div>
-<div id="footer">
-bird looking glass <a href="https://github.com/sileht/bird-lg/">source code</a> under GPL 3.0
-</div>
+			<div class="modal fade" style="display:none;">
+				<div class="modal-header">
+					<a class="close" data-dismiss="modal">×</a>
+					<h3>Modal header</h3>
+				</div>
+				<div class="modal-body" style="height: 300px; overflow: auto;">
+					<p>One fine body…</p>
+				</div>
+				<div class="modal-footer">
+					<a href="#" class="btn btn-primary">Close</a>
+				</div>
+			</div>	
+		</div>
+		<script type="text/javascript" src="{{url_for('static', filename='js/jquery.js') }}"></script>
+		<script type="text/javascript" src="{{url_for('static', filename='js/bootstrap.min.js') }}"></script>
+		<script type="text/javascript" src="{{url_for('static', filename='js/jquery-impromptu.3.2.min.js') }}"></script>
+		<script type="text/javascript">
+			request_type = "{{session.request_type}}";
+			request_args = "{{session.request_args}}";
+			hosts = "{{session.hosts}}";
+			proto = "{{session.proto}}";
+			history_query = {{session.history|tojson|safe}};
+		</script>
+		<script type="text/javascript" src="{{url_for('static', filename='js/lg.js') }}"></script>
+	</body>
+</html>

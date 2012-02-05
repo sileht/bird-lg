@@ -1,14 +1,13 @@
 {% extends "layout.html" %}
 {% block body %}
 {% for host in detail %}
-<div class="detail">
-<h2>{{host}}/{{session.proto}}: {{command}}</h2>
-{% if session.request_args != expression %}
-DNS: <a href="/whois/{{session.request_args}}" class="whois">{{session.request_args}}</a> => <a href="/whois/{{ expression|replace("/32","")|replace("/128","") }}" class="whois">{{expression|replace("/32","")|replace("/128","")}}</a>
-{% endif %}
+<h3>{{host}}: {{command}}</h3>
+{% if session.request_args != expression|replace("/32","")|replace("/128","") %}
+<i>DNS: <a href="/whois/{{session.request_args}}" class="whois">{{session.request_args}}</a> => <a href="/whois/{{ expression|replace("/32","")|replace("/128","") }}" class="whois">{{expression|replace("/32","")|replace("/128","")}}</a></i><br />
+{% endif %}<br />
 <pre>
-{{ detail[host]|safe }}
+{{ detail[host]|trim|safe }}
 </pre>
-</div>
+<br />
 {% endfor %}
 {% endblock %}

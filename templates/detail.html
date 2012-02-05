@@ -1,12 +1,11 @@
 {% extends "layout.html" %}
 {% block body %}
 {% for host in detail %}
-<div class="detail">
-<h2>{{host}}/{{session.proto}}: {{command}}</h2>
-{{ detail[host].status }}
+<h3>{{host}}/{{session.proto}}: {{command}}</h3>
+<i>{{ detail[host].status }}</i><br /><br />
 <pre>
-{{ detail[host].description|safe }}
+{{ detail[host].description|trim|safe }}
 </pre>
-</div>
+<br />
 {% endfor %}
 {% endblock %}
