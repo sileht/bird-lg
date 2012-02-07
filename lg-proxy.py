@@ -38,7 +38,8 @@ def check_accesslist():
 @app.route("/traceroute6")
 def traceroute():
     check_accesslist()
-
+    
+    src = []
     if request.path == '/traceroute6': 
 	o = "-6"
 	if app.config.get("IPV6_SOURCE",""):
