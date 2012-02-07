@@ -39,13 +39,20 @@ def check_accesslist():
 def traceroute():
     check_accesslist()
 
-    if request.path == '/traceroute6': o= "-6"
-    else: o = "-4"
+    if request.path == '/traceroute6': 
+	o = "-6"
+	if app.config.get("IPV6_SOURCE",""):
+	     src = [ "-s",  app.config.get("IPV6_SOURCE") ]
+
+    else: 
+	o = "-4"
+	if app.config.get("IPV4_SOURCE",""):
+	     src = [ "-s",  app.config.get("IPV4_SOURCE") ]
 
     query = request.args.get("q","")
     query = unquote(query)
 
-    command = [ 'traceroute', o, '-A', '-q1', '-w1', query]
+    command = [ 'traceroute' , o ] + src + [ '-A', '-q1', '-N32', '-w1', '-m15', query ]
     result = subprocess.Popen( command , stdout=subprocess.PIPE).communicate()[0].decode('utf-8', 'ignore').replace("\n","<br>")
     
     return result
