@@ -3,7 +3,7 @@
 # vim: ts=4
 ###
 #
-# Copyright (c) 2006 Mehdi Abaakouk
+# Copyright (c) 2012 Mehdi Abaakouk
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 3 as
@@ -36,6 +36,8 @@ app = Flask(__name__)
 app.config.from_pyfile('lg.cfg')
 
 def add_links(text):
+	"""Browser a string and replace ipv4, ipv6, as number, with a whois link """
+
 	if type(text) in [ str, unicode ]:
 		text = text.split("\n")
 
@@ -46,7 +48,7 @@ def add_links(text):
 			line.strip().startswith("Neighbor AS:") :
 			ret_text.append(re.sub(r'(\d+)',r'<a href="/whois/\1" class="whois">\1</a>',line))
 		else:
-			line = re.sub(r'([a-zA-Z0-9\-]*\.([a-zA-Z]{2,3}){1,2})(\s|$)', r'<a href="/whois/\1" class="whois">\1</a>',line)
+			line = re.sub(r'([a-zA-Z0-9\-]*\.([a-zA-Z]{2,3}){1,2})(\s|$)', r'<a href="/whois/\1" class="whois">\1</a>\3',line)
 			line = re.sub(r'AS(\d+)', r'<a href="/whois/\1" class="whois">AS\1</a>',line)
 			line = re.sub(r'(\d+\.\d+\.\d+\.\d+)', r'<a href="/whois/\1" class="whois">\1</a>',line)
 			hosts = "/".join(request.path.split("/")[2:])
@@ -56,6 +58,7 @@ def add_links(text):
 	return "\n".join(ret_text)
 
 def set_session(request_type, hosts, proto, request_args):
+	""" Store all data from user in the user session """
 	session.permanent = True
 	session.update( {
 		"request_type": request_type,
@@ -75,9 +78,19 @@ def set_session(request_type, hosts, proto, request_args):
 	session["history"] = history[:20]
 
 def bird_command(host, proto, query):
+	"""Alias to bird_proxy for bird service"""
 	return bird_proxy(host, proto, "bird", query)
 
 def bird_proxy(host, proto, service, query):
+	"""Retreive data of a service from a running lg-proxy on a remote node
+	
+	First and second arguments are the node and the port of the running lg-proxy
+	Third argument is the service, can be "traceroute" or "bird"
+	Last argument, the query to pass to the service
+
+	return tuple with the success of the command and the returned data
+	"""
+
 	path = ""
 	if proto == "ipv6": path = service + "6"
 	elif proto == "ipv4": path = service
@@ -124,7 +137,7 @@ def error_page(text):
 	return render_template('error.html', error = text ), 500
 
 @app.errorhandler(400)
-def page_not_found(e):
+def incorrect_request(e):
 	    return render_template('error.html', warning="The server could not understand the request"), 400
 
 @app.errorhandler(404)

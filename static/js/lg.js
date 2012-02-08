@@ -1,14 +1,24 @@
 
 
+$(window).unload(function(){
+		$(".progress").show()
+		});
+
+function change_url(loc){
+	$(".progress").show(0, function(){
+		document.location = loc;
+	});
+}
+
 function reload(){
 	loc = "/" + request_type + "/" + hosts + "/" + proto;
 	if (request_type != "summary" ){
 		if( request_args != undefined && request_args != ""){
 			loc = loc + "?q=" + request_args;
-			document.location = loc;
+			change_url(loc)
 		} 
 	} else {
-		document.location = loc;
+		change_url(loc)
 	}
 }
 function update_view(){
@@ -36,6 +46,10 @@ function update_view(){
 	$(".request_args").select();
 }
 $(function(){
+		$(".history a").click(function (event){
+			event.preventDefault();
+			change_url(this.href)
+		});
 		$(".modal .modal-footer .btn").click(function(){
 			$(".modal").modal('hide'); 
 		});

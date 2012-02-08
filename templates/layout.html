@@ -90,9 +90,12 @@
 			</div>
 
 			<div class="footer">
-			<p>bird looking glass, <a href="https://github.com/sileht/bird-lg/">source code</a> under GPL 3.0, powered by <a href="http://flask.pocoo.org">Flask</a>, <a href="http://jquery.com/">jQuery</a> and <a href="http://twitter.github.com/bootstrap/">Bootstrap</a></p>
+				<p>bird looking glass, <a href="https://github.com/sileht/bird-lg/">source code</a> under GPL 3.0, powered by <a href="http://flask.pocoo.org">Flask</a>, <a href="http://jquery.com/">jQuery</a> and <a href="http://twitter.github.com/bootstrap/">Bootstrap</a></p>
 			</div>
 
+		<div class="progress progress-info progress-striped active" style="position:fixed;bottom:0px;right:10px;display:none;height:10px;width:200px;">
+			<div class="bar" style="width: 100%;"></div>
+		</div>
 			<div class="modal fade" style="display:none;">
 				<div class="modal-header">
 					<a class="close" data-dismiss="modal">×</a>
@@ -115,7 +118,7 @@
 			hosts = "{{session.hosts}}";
 			proto = "{{session.proto}}";
 			history_query = {{session.history|tojson|safe}};
-		</script>
-		<script type="text/javascript" src="{{url_for('static', filename='js/lg.js') }}"></script>
+</script>
+<script type="text/javascript" src="{{url_for('static', filename='js/lg.js') }}"></script>
 	</body>
 </html>
