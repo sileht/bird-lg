@@ -1,0 +1,42 @@
+
+BIRD-LG
+=======
+
+this is a looking glass for the Internet Routing Daemon "Bird"
+
+
+software is splited onto two parts:
+ - lg-proxy.py: 
+   It must be install and started on all bird node. It act as a proxy to make traceroute and bird query on the node
+   Also the access restriction to this web service can be done is file "lg-proxy.cfg" (only ip based restriction for now)
+
+ - lg.py:
+   This is the frontend, a web based UI that request information to all lg-proxy.py nodes
+   The domain and the list of all bird node can be done
+
+
+
+                                         ***************
+                                    +--> * lg-proxy.py *
+                                    |    ***************
+                                    |  
+********       *******************  |    ***************
+* USER * ----> * webserver/lg.py *--+--> * lg-proxy.py *
+********       *******************  |    ***************
+                                    |  
+                                    |    ***************
+                                    +--> * lg-proxy.py *
+                                         ***************
+
+
+bird-lg depend on :
+ - python-flask  >= 0.8
+ - python-dnspython
+
+Each service can by embeded in any webserver by follow regular python-flask configuration
+
+Only tested with bird 1.2.5
+
+source code under GPL 3.0, powered by Flask, jQuery and Bootstrap
+
+Copyright (c) 2012 Mehdi Abaakouk <sileht@sileht.net>
