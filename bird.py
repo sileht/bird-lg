@@ -21,7 +21,6 @@
 
 import socket
 import sys
-import traceback
 
 BUFSIZE = 4096
 

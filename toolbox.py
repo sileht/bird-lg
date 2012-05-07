@@ -19,7 +19,7 @@
 #
 ###
 
-from dns import resolver,reversename
+from dns import resolver
 import socket
 
 

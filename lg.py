@@ -20,8 +20,6 @@
 #
 ###
 
-import sys
-import os
 import subprocess
 import re
 from urllib2 import urlopen
@@ -29,7 +27,6 @@ from urllib import quote, unquote
 
 from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve
 
-from bird import BirdSocketSingleton
 from flask import Flask, render_template, jsonify, redirect, session, request, abort
 
 app = Flask(__name__)
