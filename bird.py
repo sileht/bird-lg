@@ -116,6 +116,7 @@ class BirdSocket:
 
 		# read welcome message
 		self.__sock.recv(1024)
+		self.cmd("restrict")
 
 	def close(self):
 		if self.__sock:
