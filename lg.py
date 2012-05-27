@@ -259,7 +259,8 @@ def show_route_for_detail(hosts, proto):
 
 ASNAME_CACHE = {}
 def get_as_name(_as):
-	if True or not ASNAME_CACHE.has_key(_as):
+	return "AS%s" % _as
+	if not ASNAME_CACHE.has_key(_as):
 		whois_answer = whois_command("as%s" % _as)
 		as_name = re.search('as-name: (.*)', whois_answer)
 		if as_name:
@@ -289,7 +290,7 @@ def show_bgpmap(data):
 				if _as == previous_as: 
 					continue
 				if not nodes.has_key(_as):
-					nodes[_as] = pydot.Node(_as, style="filled", fillcolor=(first and "#F5A9A9" or "white"))
+					nodes[_as] = pydot.Node(_as, label=_as, style="filled", fillcolor=(first and "#F5A9A9" or "white"))
 					graph.add_node(nodes[_as])
 				
 				edge_tuple = (nodes[previous_as], nodes[_as])
