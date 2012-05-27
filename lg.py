@@ -24,10 +24,12 @@ import subprocess
 import re
 from urllib2 import urlopen
 from urllib import quote, unquote
+import json
 
 from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve
 
-from flask import Flask, render_template, jsonify, redirect, session, request, abort
+import pydot
+from flask import Flask, render_template, jsonify, redirect, session, request, abort, Response
 
 app = Flask(__name__)
 app.config.from_pyfile('lg.cfg')
@@ -54,6 +56,15 @@ def add_links(text):
 			ret_text.append(line)
 	return "\n".join(ret_text)
 
+def extract_paths(text):
+	paths = []
+	for line in text:
+		line = line.strip()
+		if line.startswith("BGP.as_path:"):
+			paths.append(line.replace("BGP.as_path:", "").strip().split(" "))
+
+	return paths
+
 def set_session(request_type, hosts, proto, request_args):
 	""" Store all data from user in the user session """
 	session.permanent = True
@@ -73,6 +84,9 @@ def set_session(request_type, hosts, proto, request_args):
 		del history[history.index(t)]
 	history.insert(0, t)
 	session["history"] = history[:20]
+
+def whois_command(query):
+	return subprocess.Popen( [ 'whois', query], stdout=subprocess.PIPE).communicate()[0].decode('utf-8', 'ignore')
 
 def bird_command(host, proto, query):
 	"""Alias to bird_proxy for bird service"""
@@ -150,7 +164,7 @@ def whois(query):
 	except:
 		m = re.match(r"[\w\d-]*\.(?P<domain>[\d\w-]+\.[\d\w-]+)$", query)
 		if m: query = query.groupdict()["domain"]
-	output = subprocess.Popen( [ 'whois', query], stdout=subprocess.PIPE).communicate()[0].decode('utf-8', 'ignore').replace("\n","<br>")
+	output = whois_command(query).replace("\n","<br>")
 	return jsonify(output=output, title=query)
 
 SUMMARY_UNWANTED_PROTOS = ["Kernel", "Static", "Device"]
@@ -243,6 +257,56 @@ def show_route_for(hosts, proto):
 def show_route_for_detail(hosts, proto):
 	return show_route("prefix_detail", hosts, proto)
 
+ASNAME_CACHE = {}
+def get_as_name(_as):
+	if True or not ASNAME_CACHE.has_key(_as):
+		whois_answer = whois_command("as%s" % _as)
+		as_name = re.search('as-name: (.*)', whois_answer)
+		if as_name:
+			ASNAME_CACHE[_as] = as_name.group(1).strip()
+		else:
+			ASNAME_CACHE[_as] = _as
+	if ASNAME_CACHE[_as] == _as:
+		return "AS%s" % _as
+	else:
+		return "AS%s\r%s" % (_as, ASNAME_CACHE[_as])
+
+@app.route("/bgpmap/<data>")
+def show_bgpmap(data):
+	data = json.loads(unquote(data))
+	graph = pydot.Dot('BGPMAP', graph_type='digraph')
+	nodes = {}
+	edges = {}
+	for host, asmaps in data.iteritems():
+		nodes[host] = pydot.Node(host, shape="box", style="filled", fillcolor="#F5A9A9")
+		graph.add_node(nodes[host])
+	for host, asmaps in data.iteritems():
+		first = True
+		for asmap in asmaps:
+			previous_as = host
+			for _as in asmap:
+				_as = get_as_name(_as)
+				if _as == previous_as: 
+					continue
+				if not nodes.has_key(_as):
+					nodes[_as] = pydot.Node(_as, style="filled", fillcolor=(first and "#F5A9A9" or "white"))
+					graph.add_node(nodes[_as])
+				
+				edge_tuple = (nodes[previous_as], nodes[_as])
+				if not edges.has_key(edge_tuple):
+					edge = pydot.Edge(*edge_tuple)
+					graph.add_edge(edge)
+					edges[edge_tuple] = edge
+
+				if edge.get_color() != "red" and first:
+					edge.set_color("red")
+					
+				previous_as = _as
+			first = False
+
+	#return Response("<pre>" + graph.create_dot() + "</pre>")
+	return Response(graph.create_png(), mimetype='image/png')
+
 def show_route(request_type, hosts, proto):
 	expression = unquote(request.args.get('q', ''))
 	if not expression.strip(): abort(400)
@@ -275,16 +339,18 @@ def show_route(request_type, hosts, proto):
 
 	detail = {}
 	error = []
+	bgpmap = {}
 	for host in hosts.split("+"):
 		ret, res = bird_command(host, proto, command)
 
 		res = res.split("\n")
 		if len(res) > 1 : #if ret:
 			detail[host] = add_links(res)
+			bgpmap[host] = extract_paths(res)
 		else:
 			error.append("%s: bird command failed with error, %s" % (host,"\n".join(res)))
 	
-	return render_template('route.html', detail=detail, command=command, expression=expression, error="<br>".join(error) )
+	return render_template('route.html', detail=detail, command=command, expression=expression, bgpmap=json.dumps(bgpmap), error="<br>".join(error) )
 
 app.secret_key = app.config["SESSION_KEY"]
 app.debug = True
