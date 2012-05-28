@@ -262,9 +262,9 @@ ASNAME_CACHE = load_cache_pickle(ASNAME_CACHE_FILE, {})
 def get_as_name(_as):
 	if not ASNAME_CACHE.has_key(_as):
 		whois_answer = whois_command("as%s" % _as)
-		as_name = re.search('as-name: (.*)', whois_answer)
+		as_name = re.search('(as-name|ASName): (.*)', whois_answer)
 		if as_name:
-			ASNAME_CACHE[_as] = as_name.group(1).strip()
+			ASNAME_CACHE[_as] = as_name.group(2).strip()
 		else:
 			ASNAME_CACHE[_as] = _as
 	save_cache_pickle(ASNAME_CACHE_FILE, ASNAME_CACHE)
