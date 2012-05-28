@@ -21,6 +21,7 @@
 
 from dns import resolver
 import socket
+import pickle
 
 
 def resolve(n, q):
@@ -49,5 +50,20 @@ def ipv6_is_valid(n):
     except socket.error:
         return False
 
+def save_cache_pickle(filename, data):
+	output = open(filename, 'wb')
+	pickle.dump(data, output)
+	output.close()
 
+def load_cache_pickle(filename, default = None):
+	try:
+		pkl_file = open(filename, 'rb')
+	except IOError:
+		return default
+	try:
+		data = pickle.load(pkl_file)
+	except:
+		data = default
+	pkl_file.close()
+	return data
 

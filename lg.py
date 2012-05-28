@@ -26,7 +26,7 @@ from urllib2 import urlopen
 from urllib import quote, unquote
 import json
 
-from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve
+from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve, save_cache_pickle, load_cache_pickle
 
 import pydot
 from flask import Flask, render_template, jsonify, redirect, session, request, abort, Response
@@ -257,9 +257,9 @@ def show_route_for(hosts, proto):
 def show_route_for_detail(hosts, proto):
 	return show_route("prefix_detail", hosts, proto)
 
-ASNAME_CACHE = {}
+ASNAME_CACHE_FILE = "/tmp/asname_cache.pickle"
+ASNAME_CACHE = load_cache_pickle(ASNAME_CACHE_FILE, {})
 def get_as_name(_as):
-	return "AS%s" % _as
 	if not ASNAME_CACHE.has_key(_as):
 		whois_answer = whois_command("as%s" % _as)
 		as_name = re.search('as-name: (.*)', whois_answer)
@@ -267,6 +267,7 @@ def get_as_name(_as):
 			ASNAME_CACHE[_as] = as_name.group(1).strip()
 		else:
 			ASNAME_CACHE[_as] = _as
+	save_cache_pickle(ASNAME_CACHE_FILE, ASNAME_CACHE)
 	if ASNAME_CACHE[_as] == _as:
 		return "AS%s" % _as
 	else:
