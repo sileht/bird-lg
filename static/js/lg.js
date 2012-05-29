@@ -80,7 +80,7 @@ $(function(){
 			reload();
 			});
 		$(".request_type ul a").click(function(){
-			if ( request_type.replace("_detail","") != $(this).attr('id').replace("_detail","") ){
+			if ( request_type.split("_")[0] != $(this).attr('id').split("_")[0] ){
 				request_args = ""
 				$(".request_args").val("");
 			}
