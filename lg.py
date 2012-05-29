@@ -25,6 +25,7 @@ import re
 from urllib2 import urlopen
 from urllib import quote, unquote
 import json
+import random
 
 from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve, save_cache_pickle, load_cache_pickle
 
@@ -375,15 +376,14 @@ def show_bgpmap():
             edge.set_color("red")
             edge.set_style("bold")
     
-    colors = [ "#009e23", "#1a6ec1" , "#d05701", "#6f879f", "#939a0e", "#0e9a93" ]
-    color_index = 0
-    hosts = data.keys()
+    #colors = [ "#009e23", "#1a6ec1" , "#d05701", "#6f879f", "#939a0e", "#0e9a93", "#9a0e85", "#56d8e1" ]
 
+    hosts = data.keys()
     for host, asmaps in data.iteritems():
         first = True
         for asmap in asmaps:
             previous_as = host
-            color_index = color_index + 1
+            color = "#%x" % random.randint(0, 16777215)
             for _as in asmap:
                 if _as == previous_as:
                     continue
@@ -396,7 +396,7 @@ def show_bgpmap():
                     edge.set_color("red")
                 elif edge.get_color() != "red":
                     edge.set_style("dashed")
-                    edge.set_color(colors[color_index])
+                    edge.set_color(color)
 
                 previous_as = _as
             first = False
