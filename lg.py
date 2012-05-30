@@ -317,7 +317,7 @@ def get_as_name(_as):
     """
 
     if not _as.isdigit():
-        return _as
+        return _as.strip()
 
     if _as not in ASNAME_CACHE:
         whois_answer = whois_command("as%s" % _as)
@@ -331,6 +331,14 @@ def get_as_name(_as):
         return "AS%s" % _as
     else:
         return "AS%s\r%s" % (_as, ASNAME_CACHE[_as])
+
+def get_as_number_from_protocol_name(host, proto, protocol):
+    ret, res = bird_command(host, proto, "show protocols all %s" % protocol)
+    re_asnumber = re.search("Neighbor AS:\s*(\d*)", res)
+    if re_asnumber:
+        return re_asnumber.group(1)
+    else:
+        return "?????"
 
 
 @app.route("/bgpmap/")
@@ -350,7 +358,7 @@ def show_bgpmap():
 
     def add_node(_as, **kwargs):
         if _as not in nodes:
-            kwargs["label"] = kwargs.get("label", get_as_name(_as))
+            kwargs["label"] = '<<TABLE CELLBORDER="0" BORDER="0" CELLPADDING="0" CELLSPACING="0"><TR><TD ALIGN="CENTER">' + kwargs.get("label", get_as_name(_as)).replace("\r","<BR/>") + "</TD></TR></TABLE>>"
             nodes[_as] = pydot.Node(_as, style="filled", fontsize="10", **kwargs)
             graph.add_node(nodes[_as])
         return nodes[_as]
@@ -364,6 +372,9 @@ def show_bgpmap():
             edge = pydot.Edge(*edge_tuple, **kwargs)
             graph.add_edge(edge)
             edges[edge_tuple] = edge
+        elif "label" in kwargs and kwargs["label"]:
+            e = edges[edge_tuple]
+            e.set_label(e.get_label() + "\r" + kwargs["label"])
         return edges[edge_tuple]
 
     for host, asmaps in data.iteritems():
@@ -384,12 +395,26 @@ def show_bgpmap():
         for asmap in asmaps:
             previous_as = host
             color = "#%x" % random.randint(0, 16777215)
+
+            hop = False
+            hop_label = ""
             for _as in asmap:
                 if _as == previous_as:
                     continue
 
+                if not hop:
+                    hop = True
+                    if _as not in hosts:
+                        hop_label = _as 
+                        continue
+                    else:
+                        hop_label = ""
+
+                
                 add_node(_as, fillcolor=(first and "#F5A9A9" or "white"))
-                edge = add_edge(nodes[previous_as], nodes[_as] )
+                edge = add_edge(nodes[previous_as], nodes[_as] , label=hop_label, fontsize="7")
+
+                hop_label = ""
 
                 if first:
                     edge.set_style("bold")
@@ -403,6 +428,7 @@ def show_bgpmap():
 
     node = add_node(previous_as)
     node.set_shape("box")
+
     #return Response("<pre>" + graph.create_dot() + "</pre>")
     return Response(graph.create_png(), mimetype='image/png')
 
@@ -430,17 +456,14 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
             peer_protocol_name = expr.group(3).strip()
             # Check if via line is a internal route
             for rt_host, rt_ips in app.config["ROUTER_IP"].iteritems():
+                # Special case for internal routing
                 if peer_ip in rt_ips:
                     path = [rt_host]
                     break
-            else:  # retreive as number from bird
-                ret, res = bird_command(host, proto, "show protocols all %s" % peer_protocol_name)
-                re_asnumber = re.search("Neighbor AS:\s*(\d*)", res)
-                if re_asnumber:
-                    path = [re_asnumber.group(1)]
-                else:
-                    print "Missing retreive some information for the path"
-                    path = ["as?????"]
+            else:
+                # ugly hack for good printing
+                path = [ peer_protocol_name ]
+#                path = ["%s\r%s" % (peer_protocol_name, get_as_name(get_as_number_from_protocol_name(host, proto, peer_protocol_name)))]
 
         if line.startswith("BGP.as_path:"):
             path.extend(line.replace("BGP.as_path:", "").strip().split(" "))
