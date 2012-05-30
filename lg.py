@@ -444,7 +444,7 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
     for line in text:
         line = line.strip()
 
-        expr = re.search(r'(.*)via\s+([0-9:\.]+)\s+on.*\[(\w+)\s+', line)
+        expr = re.search(r'(.*)via\s+([0-9a-fA-F:\.]+)\s+on.*\[(\w+)\s+', line)
         if expr:
             if path:
                 path.append(net_dest)
