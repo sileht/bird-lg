@@ -406,6 +406,8 @@ def show_bgpmap():
                     hop = True
                     if _as not in hosts:
                         hop_label = _as 
+                        if first:
+                            hop_label = hop_label + "*"
                         continue
                     else:
                         hop_label = ""
