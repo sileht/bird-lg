@@ -388,7 +388,7 @@ def show_bgpmap():
             edge.set_style("bold")
     
     #colors = [ "#009e23", "#1a6ec1" , "#d05701", "#6f879f", "#939a0e", "#0e9a93", "#9a0e85", "#56d8e1" ]
-
+    previous_as = None
     hosts = data.keys()
     for host, asmaps in data.iteritems():
         first = True
@@ -428,8 +428,9 @@ def show_bgpmap():
                 previous_as = _as
             first = False
 
-    node = add_node(previous_as)
-    node.set_shape("box")
+    if previous_as:
+        node = add_node(previous_as)
+        node.set_shape("box")
 
     #return Response("<pre>" + graph.create_dot() + "</pre>")
     return Response(graph.create_png(), mimetype='image/png')
@@ -541,7 +542,7 @@ def show_route(request_type, hosts, proto):
     if bgpmap:
         detail = json.dumps(detail)
 
-    return render_template((bgpmap and 'bgpmap.html' or 'route.html'), detail=detail, command=command, expression=expression, error="<br>".join(error))
+    return render_template((bgpmap and 'bgpmap.html' or 'route.html'), detail=detail, command=command, expression=expression, error="<br />".join(error))
 
 
 app.secret_key = app.config["SESSION_KEY"]
