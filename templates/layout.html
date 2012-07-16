@@ -64,10 +64,10 @@
 			<div class="row-fluid">
 				<div class="span8">
 					{% if warning %}
-					<div class="alert alert-warning">{{warning}}</div>
+					<div class="alert alert-warning">{{warning|safe}}</div>
 					{% endif %}
 					{% if error %}
-					<div class="alert alert-error">{{error}}</div>
+					<div class="alert alert-error">{{error|safe}}</div>
 					{% endif %}
 
 					{% block body %}{% endblock %}
