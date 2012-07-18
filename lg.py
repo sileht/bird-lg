@@ -27,7 +27,7 @@ from urllib import quote, unquote
 import json
 import random
 
-from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve, save_cache_pickle, load_cache_pickle
+from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve, save_cache_pickle, load_cache_pickle, get_asn_from_as
 
 import pydot
 from flask import Flask, render_template, jsonify, redirect, session, request, abort, Response
@@ -315,9 +315,14 @@ def get_as_name(_as):
     It's the use whois database informations
     # Warning, the server can be blacklisted from ripe is too many requests are done
     """
+    if not _as:
+        return "AS?????"
 
     if not _as.isdigit():
         return _as.strip()
+
+    name = get_asn_from_as(_as)[-1].replace(" ","\r",1)
+    return "AS%s | %s" % (_as, name)
 
     if _as not in ASNAME_CACHE:
         whois_answer = whois_command("as%s" % _as)
@@ -467,6 +472,16 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
                 # ugly hack for good printing
                 path = [ peer_protocol_name ]
 #                path = ["%s\r%s" % (peer_protocol_name, get_as_name(get_as_number_from_protocol_name(host, proto, peer_protocol_name)))]
+        
+        expr2 = re.search(r'(.*)unreachable\s+\[(\w+)\s+', line)
+        if expr2:
+            if path:
+                path.append(net_dest)
+                paths.append(path)
+                path = None
+
+            if expr2.group(1).strip():
+                net_dest = expr2.group(1).strip()
 
         if line.startswith("BGP.as_path:"):
             path.extend(line.replace("BGP.as_path:", "").strip().split(" "))

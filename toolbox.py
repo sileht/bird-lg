@@ -27,6 +27,10 @@ import pickle
 def resolve(n, q):
 	return str(resolver.query(n,q)[0])
 
+def get_asn_from_as(n):
+    data = resolve("AS%s.asn.cymru.com" % n ,"TXT").replace("'","").replace('"','')
+    return [ field.strip() for field in data.split("|") ]
+
 def mask_is_valid(n):
 	if not n: 
 		return True
