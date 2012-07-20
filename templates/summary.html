@@ -8,7 +8,14 @@
 </thead>
 <tbody>
 	{% for row in summary[host] %}
-	<tr class="{{ loop.cycle('odd', 'even') }}"><td><a href="/detail/{{host}}/{{session.proto}}?q={{row.name}}">{{row.name}}</a></td><td>{{row.proto}}</td><td>{{row.table}}</td><td>{{row.state}}</td><td>{{row.since}}</td><td>{{row.info}}</td></tr>
+	<tr class="{{ loop.cycle('odd', 'even') }}">
+        <td><a href="/detail/{{host}}/{{session.proto}}?q={{row.name}}">{{row.name}}</a></td>
+        <td>{{row.proto}}</td>
+        <td>{{row.table}}</td>
+        <td><span class="label label-{% if row.state == "up" %}success{% elif row.state == "down" %}default{% else %}important{% endif %}">{{row.state}}</span></td>
+        <td>{{row.since}}</td>
+        <td>{{row.info}}</td>
+    </tr>
 	{% else %}
 	<tr><td>{{summary[host].error}}</td><td></td><td></td><td></td><td></td><td></td></tr>
 	{% endfor %}
