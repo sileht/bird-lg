@@ -382,7 +382,7 @@ def show_bgpmap():
 
             label_without_star = kwargs["label"].replace("*", "")
             labels = e.get_label().split("\r") 
-            if "%s*" % pl not in labels:
+            if "%s*" % label_without_star not in labels:
                 labels = [ kwargs["label"] ]  + [ l for l in labels if not l.startswith(label_without_star) ] 
                 labels = sorted(labels, cmp=lambda x,y: x.endswith("*") and -1 or 1)
 
