@@ -1,4 +1,3 @@
-
 BIRD-LG
 =======
 
@@ -32,6 +31,7 @@ software is splited onto two parts:
 bird-lg depend on :
  - python-flask  >= 0.8
  - python-dnspython
+ - python-pydot
 
 Each service can by embeded in any webserver by follow regular python-flask configuration
 
