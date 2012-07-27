@@ -361,9 +361,15 @@ def show_bgpmap():
     nodes = {}
     edges = {}
 
+    def escape(label):
+        label = label.replace("&", "&amp;")
+        label = label.replace(">", "&gt;")
+        label = label.replace("<", "&lt;")
+        return label
+
     def add_node(_as, **kwargs):
         if _as not in nodes:
-            kwargs["label"] = '<<TABLE CELLBORDER="0" BORDER="0" CELLPADDING="0" CELLSPACING="0"><TR><TD ALIGN="CENTER">' + kwargs.get("label", get_as_name(_as)).replace("\r","<BR/>") + "</TD></TR></TABLE>>"
+            kwargs["label"] = '<<TABLE CELLBORDER="0" BORDER="0" CELLPADDING="0" CELLSPACING="0"><TR><TD ALIGN="CENTER">' + escape(kwargs.get("label", get_as_name(_as))).replace("\r","<BR/>") + "</TD></TR></TABLE>>"
             nodes[_as] = pydot.Node(_as, style="filled", fontsize="10", **kwargs)
             graph.add_node(nodes[_as])
         return nodes[_as]
@@ -385,8 +391,9 @@ def show_bgpmap():
             if "%s*" % label_without_star not in labels:
                 labels = [ kwargs["label"] ]  + [ l for l in labels if not l.startswith(label_without_star) ] 
                 labels = sorted(labels, cmp=lambda x,y: x.endswith("*") and -1 or 1)
-
-                e.set_label("\r".join(labels))
+                
+                label = escape("\r".join(labels))
+                e.set_label(label)
         return edges[edge_tuple]
 
     for host, asmaps in data.iteritems():
