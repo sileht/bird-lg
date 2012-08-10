@@ -94,6 +94,12 @@ $(function(){
 				});
 		$('.request_args').val(request_args);
 		update_view();
+
+	t = $('.table-summary')
+    if (t) t.dataTable( {
+        "bPaginate": false,
+	} );
+
 });
 
 

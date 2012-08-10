@@ -1,8 +1,8 @@
 {% extends "layout.html" %}
 {% block body %}
 {% for host in summary %}
-<h3>{{host}}: {{command}}</h3><br />
-<table class="table table-striped table-bordered table-condensed">
+<h3 style="float:left">{{host}}: {{command}}</h3>
+<table class="table table-striped table-bordered table-condensed table-summary">
 <thead>
 	<tr><th>Name</th><th>protocol</th><th>table</th><th>state</th><th>since</th><th>info</th></tr>
 </thead>
