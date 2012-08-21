@@ -21,6 +21,8 @@
 ###
 
 import subprocess
+import logging
+from logging.handlers import TimedRotatingFileHandler
 import re
 from urllib2 import urlopen
 from urllib import quote, unquote
@@ -34,6 +36,12 @@ from flask import Flask, render_template, jsonify, redirect, session, request, a
 
 app = Flask(__name__)
 app.config.from_pyfile('lg.cfg')
+app.secret_key = app.config["SESSION_KEY"]
+app.debug = app.config["DEBUG"]
+
+file_handler = TimedRotatingFileHandler(filename=app.config["LOG_FILE"], when="midnight")
+file_handler.setLevel(getattr(logging, app.config["LOG_LEVEL"].upper()))
+app.logger.addHandler(file_handler)
 
 
 def add_links(text):
@@ -306,9 +314,6 @@ def show_route_for_bgpmap(hosts, proto):
     return show_route("prefix_bgpmap", hosts, proto)
 
 
-ASNAME_CACHE_FILE = "/tmp/asname_cache.pickle"
-ASNAME_CACHE = load_cache_pickle(ASNAME_CACHE_FILE, {})
-
 def get_as_name(_as):
     """return a string that contain the as number following by the as name
 
@@ -324,18 +329,6 @@ def get_as_name(_as):
     name = get_asn_from_as(_as)[-1].replace(" ","\r",1)
     return "AS%s | %s" % (_as, name)
 
-    if _as not in ASNAME_CACHE:
-        whois_answer = whois_command("as%s" % _as)
-        as_name = re.search('(as-name|ASName): (.*)', whois_answer)
-        if as_name:
-            ASNAME_CACHE[_as] = as_name.group(2).strip()
-        else:
-            ASNAME_CACHE[_as] = _as
-    save_cache_pickle(ASNAME_CACHE_FILE, ASNAME_CACHE)
-    if ASNAME_CACHE[_as] == _as:
-        return "AS%s" % _as
-    else:
-        return "AS%s\r%s" % (_as, ASNAME_CACHE[_as])
 
 def get_as_number_from_protocol_name(host, proto, protocol):
     ret, res = bird_command(host, proto, "show protocols all %s" % protocol)
@@ -574,7 +567,5 @@ def show_route(request_type, hosts, proto):
     return render_template((bgpmap and 'bgpmap.html' or 'route.html'), detail=detail, command=command, expression=expression, error="<br />".join(error))
 
 
-app.secret_key = app.config["SESSION_KEY"]
-app.debug = app.config["DEBUG"]
 if __name__ == "__main__":
     app.run("0.0.0.0")

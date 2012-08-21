@@ -20,6 +20,8 @@
 ###
 
 
+import logging
+from logging.handlers import TimedRotatingFileHandler
 import subprocess
 from urllib import unquote
 
@@ -28,7 +30,13 @@ from bird import BirdSocket
 from flask import Flask, request, abort
 
 app = Flask(__name__)
+app.debug = app.config["DEBUG"]
 app.config.from_pyfile('lg-proxy.cfg')
+
+file_handler = TimedRotatingFileHandler(filename=app.config["LOG_FILE"], when="midnight") 
+file_handler.setLevel(getattr(logging, app.config["LOG_LEVEL"].upper()))
+app.logger.addHandler(file_handler)
+
 
 def check_accesslist():
     if  app.config["ACCESS_LIST"] and request.remote_addr not in app.config["ACCESS_LIST"]:
@@ -79,6 +87,5 @@ def bird():
 	
 
 if __name__ == "__main__":
-    app.debug = True
     app.run("0.0.0.0")
 
