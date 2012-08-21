@@ -575,6 +575,6 @@ def show_route(request_type, hosts, proto):
 
 
 app.secret_key = app.config["SESSION_KEY"]
-app.debug = True
+app.debug = app.config["DEBUG"]
 if __name__ == "__main__":
     app.run("0.0.0.0")
