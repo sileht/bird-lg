@@ -29,7 +29,9 @@ from urllib import quote, unquote
 import json
 import random
 
-from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve, save_cache_pickle, load_cache_pickle, get_asn_from_as
+from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve, save_cache_pickle, load_cache_pickle, get_asn_from_as, unescape
+from xml.sax.saxutils import escape
+
 
 import pydot
 from flask import Flask, render_template, jsonify, redirect, session, request, abort, Response
@@ -175,9 +177,12 @@ def incorrect_request(e):
 def page_not_found(e):
         return render_template('error.html', warning="The requested URL was not found on the server."), 404
 
+def sanitized(*args):
+    return tuple( unescape(s) for s in args)
 
 @app.route("/whois/<query>")
 def whois(query):
+    query = sanitized(query)
     if not query.strip():
         abort(400)
 
@@ -200,6 +205,8 @@ SUMMARY_RE_MATCH = r"(?P<name>[\w_]+)\s+(?P<proto>\w+)\s+(?P<table>\w+)\s+(?P<st
 @app.route("/summary/<hosts>")
 @app.route("/summary/<hosts>/<proto>")
 def summary(hosts, proto="ipv4"):
+    hosts, proto = sanitized(hosts, proto)
+
     set_session("summary", hosts, proto, "")
     command = "show protocols"
 
@@ -229,6 +236,9 @@ def summary(hosts, proto="ipv4"):
 @app.route("/detail/<hosts>/<proto>")
 def detail(hosts, proto):
     name = request.args.get('q', '').strip()
+
+    hosts, proto, name= sanitized(hosts, proto, name)
+
     if not name:
         abort(400)
 
@@ -251,6 +261,8 @@ def detail(hosts, proto):
 @app.route("/traceroute/<hosts>/<proto>")
 def traceroute(hosts, proto):
     q = request.args.get('q', '').strip()
+    hosts, proto, q = sanitized(hosts, proto, q)
+
     if not q:
         abort(400)
 
@@ -344,6 +356,7 @@ def show_bgpmap():
     """return a bgp map in a png file, from the json tree in q argument"""
 
     data = request.args.get('q', '').strip()
+    #data = sanitized(data)
     if not data:
         abort(400)
 
@@ -501,7 +514,8 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
 
 
 def show_route(request_type, hosts, proto):
-    expression = unquote(request.args.get('q', '')).strip()
+    expression = request.args.get('q', '').strip()
+    request_type, hosts, proto, expression = sanitized(request_type, hosts, proto, expression)
     if not expression:
         abort(400)
 
