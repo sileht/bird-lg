@@ -63,7 +63,10 @@ def add_links(text):
             line = re.sub(r'([a-zA-Z0-9\-]*\.([a-zA-Z]{2,3}){1,2})(\s|$)', r'<a href="/whois/\1" class="whois">\1</a>\3', line)
             line = re.sub(r'AS(\d+)', r'<a href="/whois/\1" class="whois">AS\1</a>', line)
             line = re.sub(r'(\d+\.\d+\.\d+\.\d+)', r'<a href="/whois/\1" class="whois">\1</a>', line)
-            hosts = "/".join(request.path.split("/")[2:])
+            if len(request.path) >= 2:
+                hosts = "/".join(request.path.split("/")[2:])
+            else:
+                hosts = "/"
             line = re.sub(r'\[(\w+)\s+((|\d\d\d\d-\d\d-\d\d\s)(|\d\d:)\d\d:\d\d|\w\w\w\d\d)', r'[<a href="/detail/%s?q=\1">\1</a> \2' % hosts, line)
             line = re.sub(r'(^|\s+)(([a-f\d]{0,4}:){3,10}[a-f\d]{0,4})', r'\1<a href="/whois/\2" class="whois">\2</a>', line, re.I)
             ret_text.append(line)
@@ -535,7 +538,7 @@ def show_route(request_type, hosts, proto):
         command = "show route where net ~ [ " + expression + " ]" + all
     else:
         mask = ""
-        if len(expression.split("/")) > 1:
+        if len(expression.split("/")) == 2:
             expression, mask = (expression.split("/"))
 
         if not mask and proto == "ipv4":
