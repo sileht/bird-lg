@@ -181,7 +181,11 @@ def page_not_found(e):
         return render_template('error.html', warning="The requested URL was not found on the server."), 404
 
 def sanitized(*args):
-    return tuple( unescape(s) for s in args)
+    res = tuple( unescape(s) for s in args)
+    if len(args) == 1:
+        return res[1]
+    else:
+        return res
 
 @app.route("/whois/<query>")
 def whois(query):
