@@ -30,11 +30,11 @@ import json
 import random
 
 from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve, save_cache_pickle, load_cache_pickle, get_asn_from_as, unescape
-from xml.sax.saxutils import escape
+#from xml.sax.saxutils import escape
 
 
 import pydot
-from flask import Flask, render_template, jsonify, redirect, session, request, abort, Response
+from flask import Flask, render_template, jsonify, redirect, session, request, abort, Response, Markup
 
 app = Flask(__name__)
 app.config.from_pyfile('lg.cfg')
@@ -58,17 +58,17 @@ def add_links(text):
         # Some heuristic to create link
         if line.strip().startswith("BGP.as_path:") or \
             line.strip().startswith("Neighbor AS:"):
-            ret_text.append(re.sub(r'(\d+)', r'<a href="/whois/\1" class="whois">\1</a>', line))
+            ret_text.append(re.sub(r'(\d+)', r'<a href="/whois?q=\1" class="whois">\1</a>', line))
         else:
-            line = re.sub(r'([a-zA-Z0-9\-]*\.([a-zA-Z]{2,3}){1,2})(\s|$)', r'<a href="/whois/\1" class="whois">\1</a>\3', line)
-            line = re.sub(r'AS(\d+)', r'<a href="/whois/\1" class="whois">AS\1</a>', line)
-            line = re.sub(r'(\d+\.\d+\.\d+\.\d+)', r'<a href="/whois/\1" class="whois">\1</a>', line)
+            line = re.sub(r'([a-zA-Z0-9\-]*\.([a-zA-Z]{2,3}){1,2})(\s|$)', r'<a href="/whois?q=\1" class="whois">\1</a>\3', line)
+            line = re.sub(r'AS(\d+)', r'<a href="/whois?q=\1" class="whois">AS\1</a>', line)
+            line = re.sub(r'(\d+\.\d+\.\d+\.\d+)', r'<a href="/whois?q=\1" class="whois">\1</a>', line)
             if len(request.path) >= 2:
                 hosts = "/".join(request.path.split("/")[2:])
             else:
                 hosts = "/"
             line = re.sub(r'\[(\w+)\s+((|\d\d\d\d-\d\d-\d\d\s)(|\d\d:)\d\d:\d\d|\w\w\w\d\d)', r'[<a href="/detail/%s?q=\1">\1</a> \2' % hosts, line)
-            line = re.sub(r'(^|\s+)(([a-f\d]{0,4}:){3,10}[a-f\d]{0,4})', r'\1<a href="/whois/\2" class="whois">\2</a>', line, re.I)
+            line = re.sub(r'(^|\s+)(([a-f\d]{0,4}:){3,10}[a-f\d]{0,4})', r'\1<a href="/whois?q=\2" class="whois">\2</a>', line, re.I)
             ret_text.append(line)
     return "\n".join(ret_text)
 
@@ -168,29 +168,26 @@ def hello():
 
 
 def error_page(text):
-    return render_template('error.html', error=text), 500
+    return render_template('error.html', errors=[text]), 500
 
 
 @app.errorhandler(400)
 def incorrect_request(e):
-        return render_template('error.html', warning="The server could not understand the request"), 400
+        return render_template('error.html', warnings=["The server could not understand the request"]), 400
 
 
 @app.errorhandler(404)
 def page_not_found(e):
-        return render_template('error.html', warning="The requested URL was not found on the server."), 404
+        return render_template('error.html', warnings=["The requested URL was not found on the server."]), 404
 
-def sanitized(*args):
-    res = tuple( unescape(s) for s in args)
-    if len(args) == 1:
-        return res[0]
-    else:
-        return res
+def get_query():
+    q = unquote(request.args.get('q', '').strip())
+    return q
 
-@app.route("/whois/<query>")
-def whois(query):
-    query = sanitized(query)
-    if not query.strip():
+@app.route("/whois")
+def whois():
+    query = get_query()
+    if not query:
         abort(400)
 
     try:
@@ -212,13 +209,12 @@ SUMMARY_RE_MATCH = r"(?P<name>[\w_]+)\s+(?P<proto>\w+)\s+(?P<table>\w+)\s+(?P<st
 @app.route("/summary/<hosts>")
 @app.route("/summary/<hosts>/<proto>")
 def summary(hosts, proto="ipv4"):
-    hosts, proto = sanitized(hosts, proto)
 
     set_session("summary", hosts, proto, "")
     command = "show protocols"
 
     summary = {}
-    error = []
+    errors = []
     for host in hosts.split("+"):
         ret, res = bird_command(host, proto, command)
         res = res.split("\n")
@@ -235,16 +231,14 @@ def summary(hosts, proto="ipv4"):
 
             summary[host] = data
         else:
-            error.append("%s: bird command failed with error, %s" % (host, "\n".join(res)))
+            errors.append("%s: bird command failed with error, %s" % (host, "\n".join(res)))
 
-    return render_template('summary.html', summary=summary, command=command, error="<br>".join(error))
+    return render_template('summary.html', summary=summary, command=command, errors=errors)
 
 
 @app.route("/detail/<hosts>/<proto>")
 def detail(hosts, proto):
-    name = request.args.get('q', '').strip()
-
-    hosts, proto, name= sanitized(hosts, proto, name)
+    name = get_query()
 
     if not name:
         abort(400)
@@ -253,22 +247,21 @@ def detail(hosts, proto):
     command = "show protocols all %s" % name
 
     detail = {}
-    error = []
+    errors = []
     for host in hosts.split("+"):
         ret, res = bird_command(host, proto, command)
         res = res.split("\n")
         if len(res) > 1:
             detail[host] = {"status": res[1], "description": add_links(res[2:])}
         else:
-            error.append("%s: bird command failed with error, %s" % (host, "\n".join(res)))
+            errors.append("%s: bird command failed with error, %s" % (host, "\n".join(res)))
 
-    return render_template('detail.html', detail=detail, command=command, error="<br>".join(error))
+    return render_template('detail.html', detail=detail, command=command, errors=errors)
 
 
 @app.route("/traceroute/<hosts>/<proto>")
 def traceroute(hosts, proto):
-    q = request.args.get('q', '').strip()
-    hosts, proto, q = sanitized(hosts, proto, q)
+    q = get_query()
 
     if not q:
         abort(400)
@@ -362,12 +355,11 @@ def get_as_number_from_protocol_name(host, proto, protocol):
 def show_bgpmap():
     """return a bgp map in a png file, from the json tree in q argument"""
 
-    data = request.args.get('q', '').strip()
-    #data = sanitized(data)
+    data = get_query()
     if not data:
         abort(400)
 
-    data = json.loads(unquote(data))
+    data = json.loads(data)
 
     graph = pydot.Dot('BGPMAP', graph_type='digraph')
 
@@ -521,8 +513,7 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
 
 
 def show_route(request_type, hosts, proto):
-    expression = request.args.get('q', '').strip()
-    request_type, hosts, proto, expression = sanitized(request_type, hosts, proto, expression)
+    expression = get_query()
     if not expression:
         abort(400)
 
@@ -569,7 +560,7 @@ def show_route(request_type, hosts, proto):
         command = "show route for " + expression + all
 
     detail = {}
-    error = []
+    errors = []
     for host in hosts.split("+"):
         ret, res = bird_command(host, proto, command)
 
@@ -580,12 +571,12 @@ def show_route(request_type, hosts, proto):
             else:
                 detail[host] = add_links(res)
         else:
-            error.append("%s: bird command failed with error, %s" % (host, "\n".join(res)))
+            errors.append("%s: bird command failed with error, %s" % (host, "\n".join(res)))
 
     if bgpmap:
         detail = json.dumps(detail)
 
-    return render_template((bgpmap and 'bgpmap.html' or 'route.html'), detail=detail, command=command, expression=expression, error="<br />".join(error))
+    return render_template((bgpmap and 'bgpmap.html' or 'route.html'), detail=detail, command=command, expression=expression, errors=errors)
 
 
 if __name__ == "__main__":

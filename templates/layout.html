@@ -64,11 +64,15 @@
 		<div class="container-fluid">
 			<div class="row-fluid">
 				<div class="span8">
-					{% if warning %}
-					<div class="alert alert-warning">{{warning|safe}}</div>
+					{% if warnings %}
+					<div class="alert alert-warning">
+                        {% for warning in warnings %}{{warning}}<br />{% endfor %}
+                    </div>
 					{% endif %}
-					{% if error %}
-					<div class="alert alert-error">{{error|safe}}</div>
+					{% if errors %}
+					<div class="alert alert-error">
+						{% for error in errors %}{{error}}<br />{% endfor %}
+                    </div>
 					{% endif %}
 
 					{% block body %}{% endblock %}
@@ -112,12 +116,11 @@
 		</div>
 		<script type="text/javascript" src="{{url_for('static', filename='js/jquery.js') }}"></script>
 		<script type="text/javascript" src="{{url_for('static', filename='js/bootstrap.min.js') }}"></script>
-		<script type="text/javascript" src="{{url_for('static', filename='js/jquery-impromptu.3.2.min.js') }}"></script>
         <script type="text/javascript" src="{{url_for('static', filename='js/jquery.dataTables.js') }}"></script>
         <script type="text/javascript" src="{{url_for('static', filename='js/DT_bootstrap.js') }}"></script>
 		<script type="text/javascript">
 			request_type = "{{session.request_type}}";
-			request_args = "{{session.request_args}}";
+			request_args = "{{session.request_args|safe}}";
 			hosts = "{{session.hosts}}";
 			proto = "{{session.proto}}";
 			history_query = {{session.history|tojson|safe}};
