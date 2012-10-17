@@ -122,8 +122,10 @@ def bird_proxy(host, proto, service, query):
 
     port = app.config["PROXY"].get(host, "")
 
-    if not port or not path:
-        return False, "Host/Proto not allowed"
+    if not port:
+        return False, 'Host "%s" invalid' % host
+    elif not path:
+        return False, 'Proto "%s" invalid' % proto
     else:
         url = "http://%s.%s:%d/%s?q=%s" % (host, app.config["DOMAIN"], port, path, quote(query))
         try:
@@ -218,20 +220,26 @@ def summary(hosts, proto="ipv4"):
     for host in hosts.split("+"):
         ret, res = bird_command(host, proto, command)
         res = res.split("\n")
-        if len(res) > 1:
-            data = []
-            for line in res[1:]:
-                line = line.strip()
-                if line and (line.split() + [""])[1] not in SUMMARY_UNWANTED_PROTOS:
-                    m = re.match(SUMMARY_RE_MATCH, line)
-                    if m:
-                        data.append(m.groupdict())
-                    else:
-                        app.logger.warning("couldn't parse: %s", line)
 
-            summary[host] = data
-        else:
+        if ret is False:
+            errors.append("%s" % res)
+            continue
+
+        if len(res) <= 1:
             errors.append("%s: bird command failed with error, %s" % (host, "\n".join(res)))
+            continue
+
+        data = []
+        for line in res[1:]:
+            line = line.strip()
+            if line and (line.split() + [""])[1] not in SUMMARY_UNWANTED_PROTOS:
+                m = re.match(SUMMARY_RE_MATCH, line)
+                if m:
+                    data.append(m.groupdict())
+                else:
+                    app.logger.warning("couldn't parse: %s", line)
+
+        summary[host] = data
 
     return render_template('summary.html', summary=summary, command=command, errors=errors)
 
@@ -251,10 +259,16 @@ def detail(hosts, proto):
     for host in hosts.split("+"):
         ret, res = bird_command(host, proto, command)
         res = res.split("\n")
-        if len(res) > 1:
-            detail[host] = {"status": res[1], "description": add_links(res[2:])}
-        else:
+
+        if ret is False:
+            errors.append("%s" % res)
+            continue
+
+        if len(res) <= 1:
             errors.append("%s: bird command failed with error, %s" % (host, "\n".join(res)))
+            continue
+
+        detail[host] = {"status": res[1], "description": add_links(res[2:])}
 
     return render_template('detail.html', detail=detail, command=command, errors=errors)
 
@@ -279,11 +293,17 @@ def traceroute(hosts, proto):
         except:
             return error_page("%s is unresolvable or invalid for %s" % (q, proto))
 
+    errors = []
     infos = {}
     for host in hosts.split("+"):
         status, resultat = bird_proxy(host, proto, "traceroute", q)
+        if status is False:
+            errors.append("%s" % resultat)
+            continue
+
+
         infos[host] = add_links(resultat)
-    return render_template('traceroute.html', infos=infos)
+    return render_template('traceroute.html', infos=infos, errors=errors)
 
 
 @app.route("/adv/<hosts>/<proto>")
@@ -563,15 +583,20 @@ def show_route(request_type, hosts, proto):
     errors = []
     for host in hosts.split("+"):
         ret, res = bird_command(host, proto, command)
-
         res = res.split("\n")
-        if len(res) > 1:
-            if bgpmap:
-                detail[host] = build_as_tree_from_raw_bird_ouput(host, proto, res)
-            else:
-                detail[host] = add_links(res)
-        else:
+
+        if ret is False:
+            errors.append("%s" % res)
+            continue
+
+        if len(res) <= 1:
             errors.append("%s: bird command failed with error, %s" % (host, "\n".join(res)))
+            continue
+
+        if bgpmap:
+            detail[host] = build_as_tree_from_raw_bird_ouput(host, proto, res)
+        else:
+            detail[host] = add_links(res)
 
     if bgpmap:
         detail = json.dumps(detail)
