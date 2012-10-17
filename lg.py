@@ -183,7 +183,7 @@ def page_not_found(e):
 def sanitized(*args):
     res = tuple( unescape(s) for s in args)
     if len(args) == 1:
-        return res[1]
+        return res[0]
     else:
         return res
 
