@@ -22,6 +22,7 @@
 
 import logging
 from logging.handlers import TimedRotatingFileHandler
+from logging import FileHandler
 import subprocess
 from urllib import unquote
 
@@ -34,9 +35,17 @@ app.debug = app.config["DEBUG"]
 app.config.from_pyfile('lg-proxy.cfg')
 
 file_handler = TimedRotatingFileHandler(filename=app.config["LOG_FILE"], when="midnight") 
-file_handler.setLevel(getattr(logging, app.config["LOG_LEVEL"].upper()))
+app.logger.setLevel(getattr(logging, app.config["LOG_LEVEL"].upper()))
 app.logger.addHandler(file_handler)
 
+@app.before_request
+def access_log_before(*args, **kwargs):
+    app.logger.info("[%s] request %s, %s", request.remote_addr, request.url, "|".join(["%s:%s"%(k,v) for k,v in request.headers.items()]))
+
+@app.after_request
+def access_log_after(response, *args, **kwargs):
+    app.logger.info("[%s] reponse %s, %s", request.remote_addr,  request.url, response.status_code)
+    return response
 
 def check_accesslist():
     if  app.config["ACCESS_LIST"] and request.remote_addr not in app.config["ACCESS_LIST"]:
@@ -87,5 +96,6 @@ def bird():
 	
 
 if __name__ == "__main__":
+    app.logger.info("lg-proxy start")
     app.run("0.0.0.0")
 
