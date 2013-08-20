@@ -1,18 +1,23 @@
 BIRD-LG
 =======
 
-this is a looking glass for the Internet Routing Daemon "Bird"
+This is a looking glass for the Internet Routing Daemon "Bird".
 
 
-software is splited onto two parts:
- - lg-proxy.py: 
-   It must be install and started on all bird node. It act as a proxy to make traceroute and bird query on the node
-   Also the access restriction to this web service can be done is file "lg-proxy.cfg" (only ip based restriction for now)
+Software is split in two parts:
+
+ - lg-proxy.py:
+
+   It must be installed and started on all bird nodes. It act as a proxy to make traceroute and bird query on the node.
+   Access restriction to this web service can be done in file "lg-proxy.cfg" (only IP address based restriction for now).
 
  - lg.py:
-   This is the frontend, a web based UI that request information to all lg-proxy.py nodes
-   The domain and the list of all bird node can be done
 
+   This is the frontend, a web based UI that request informations to all lg-proxy.py nodes.
+   The domain and the list of all bird nodes can be done.
+
+
+```
 
 
                                          ***************
@@ -26,17 +31,19 @@ software is splited onto two parts:
                                     |    ***************
                                     +--> * lg-proxy.py *
                                          ***************
+```
 
 
-bird-lg depend on :
+bird-lg depends on :
+
  - python-flask  >= 0.8
  - python-dnspython
  - python-pydot
 
-Each service can by embeded in any webserver by follow regular python-flask configuration
+Each services can be embedded in any webserver by following regular python-flask configuration.
 
-Only tested with bird 1.2.5
+Only tested with bird 1.2.5.
 
-source code under GPL 3.0, powered by Flask, jQuery and Bootstrap
+Source code is under GPL 3.0, powered by Flask, jQuery and Bootstrap.
 
-Copyright (c) 2012 Mehdi Abaakouk <sileht@sileht.net>
+Copyright © 2012 Mehdi Abaakouk <sileht@sileht.net>
