@@ -96,7 +96,10 @@ def set_session(request_type, hosts, proto, request_args):
 
 
 def whois_command(query):
-    return subprocess.Popen(['whois', query], stdout=subprocess.PIPE).communicate()[0].decode('utf-8', 'ignore')
+    server = []
+    if app.config.get("WHOIS_SERVER", ""):
+        server = [ "-h", app.config.get("WHOIS_SERVER") ]
+    return subprocess.Popen(['whois'] + server + [query], stdout=subprocess.PIPE).communicate()[0].decode('utf-8', 'ignore')
 
 
 def bird_command(host, proto, query):
