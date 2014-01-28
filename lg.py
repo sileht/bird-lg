@@ -48,7 +48,10 @@ app.logger.addHandler(file_handler)
 
 def get_asn_from_as(n):
     asn_zone = app.config.get("ASN_ZONE", "asn.cymru.com")
-    data = resolve("AS%s.%s" % (n, asn_zone) ,"TXT").replace("'","").replace('"','')
+    try:
+        data = resolve("AS%s.%s" % (n, asn_zone) ,"TXT").replace("'","").replace('"','')
+    except:
+        return " "*5
     return [ field.strip() for field in data.split("|") ]
 
 
