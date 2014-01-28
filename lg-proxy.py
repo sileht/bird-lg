@@ -20,6 +20,7 @@
 ###
 
 
+import sys
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from logging import FileHandler
@@ -70,7 +71,13 @@ def traceroute():
     query = request.args.get("q","")
     query = unquote(query)
 
-    command = [ 'traceroute' , o ] + src + [ '-A', '-q1', '-N32', '-w1', '-m15', query ]
+    if sys.platform.startswith('freebsd') or sys.platform.startswith('netbsd'):
+        options = [ '-a', '-q1', '-w1', '-m15' ]
+    if sys.platform.startswith('openbsd'):
+        options = [ '-A', '-q1', '-w1', '-m15' ]
+    else: # For Linux
+        options = [ '-A', '-q1', '-N32', '-w1', '-m15' ]
+    command = [ 'traceroute' , o ] + src + options + [ query ]
     result = subprocess.Popen( command , stdout=subprocess.PIPE).communicate()[0].decode('utf-8', 'ignore').replace("\n","<br>")
     
     return result
