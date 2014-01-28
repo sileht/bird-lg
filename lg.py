@@ -470,7 +470,10 @@ def show_bgpmap():
 
                 
                 add_node(_as, fillcolor=(first and "#F5A9A9" or "white"))
-                edge = add_edge(nodes[previous_as], nodes[_as] , label=hop_label, fontsize="7")
+                if hop_label:
+                    edge = add_edge(nodes[previous_as], nodes[_as], label=hop_label, fontsize="7")
+                else:
+                    edge = add_edge(nodes[previous_as], nodes[_as], fontsize="7")
 
                 hop_label = ""
 
