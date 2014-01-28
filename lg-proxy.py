@@ -73,7 +73,7 @@ def traceroute():
 
     if sys.platform.startswith('freebsd') or sys.platform.startswith('netbsd'):
         options = [ '-a', '-q1', '-w1', '-m15' ]
-    if sys.platform.startswith('openbsd'):
+    elif sys.platform.startswith('openbsd'):
         options = [ '-A', '-q1', '-w1', '-m15' ]
     else: # For Linux
         options = [ '-A', '-q1', '-N32', '-w1', '-m15' ]
