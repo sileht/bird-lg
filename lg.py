@@ -620,4 +620,4 @@ def show_route(request_type, hosts, proto):
 
 
 if __name__ == "__main__":
-    app.run("0.0.0.0")
+    app.run(app.config.get("BIND_IP", "0.0.0.0"), app.config.get("BIND_PORT", 5000))
