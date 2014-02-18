@@ -32,7 +32,7 @@ from flask import Flask, request, abort
 
 app = Flask(__name__)
 app.debug = app.config["DEBUG"]
-app.config.from_pyfile('lg-proxy.cfg')
+app.config.from_pyfile('lgproxy.cfg')
 
 file_handler = TimedRotatingFileHandler(filename=app.config["LOG_FILE"], when="midnight") 
 app.logger.setLevel(getattr(logging, app.config["LOG_LEVEL"].upper()))
@@ -96,6 +96,6 @@ def bird():
 	
 
 if __name__ == "__main__":
-    app.logger.info("lg-proxy start")
+    app.logger.info("lgproxy start")
     app.run("0.0.0.0")
 

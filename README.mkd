@@ -6,14 +6,14 @@ This is a looking glass for the Internet Routing Daemon "Bird".
 
 Software is split in two parts:
 
- - lg-proxy.py:
+ - lgproxy.py:
 
    It must be installed and started on all bird nodes. It act as a proxy to make traceroute and bird query on the node.
-   Access restriction to this web service can be done in file "lg-proxy.cfg" (only IP address based restriction for now).
+   Access restriction to this web service can be done in file "lgproxy.cfg" (only IP address based restriction for now).
 
  - lg.py:
 
-   This is the frontend, a web based UI that request informations to all lg-proxy.py nodes.
+   This is the frontend, a web based UI that request informations to all lgproxy.py nodes.
    The domain and the list of all bird nodes can be done.
 
 
@@ -21,15 +21,15 @@ Software is split in two parts:
 
 
                                          ***************
-                                    +--> * lg-proxy.py *
+                                    +--> * lgproxy.py *
                                     |    ***************
                                     |  
 ********       *******************  |    ***************
-* USER * ----> * webserver/lg.py *--+--> * lg-proxy.py *
+* USER * ----> * webserver/lg.py *--+--> * lgproxy.py *
 ********       *******************  |    ***************
                                     |  
                                     |    ***************
-                                    +--> * lg-proxy.py *
+                                    +--> * lgproxy.py *
                                          ***************
 ```
 

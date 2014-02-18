@@ -105,9 +105,9 @@ def bird_command(host, proto, query):
 
 
 def bird_proxy(host, proto, service, query):
-    """Retreive data of a service from a running lg-proxy on a remote node
+    """Retreive data of a service from a running lgproxy on a remote node
 
-    First and second arguments are the node and the port of the running lg-proxy
+    First and second arguments are the node and the port of the running lgproxy
     Third argument is the service, can be "traceroute" or "bird"
     Last argument, the query to pass to the service
 
