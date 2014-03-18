@@ -20,6 +20,7 @@
 ###
 
 
+import sys
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from logging import FileHandler
@@ -56,21 +57,34 @@ def check_accesslist():
 def traceroute():
     check_accesslist()
     
+    if sys.platform.startswith('freebsd') or sys.platform.startswith('netbsd') or sys.platform.startswith('openbsd'):
+        traceroute4 = [ 'traceroute' ]
+        traceroute6 = [ 'traceroute6' ]
+    else: # For Linux
+        traceroute4 = [ 'traceroute', '-4' ]
+        traceroute6 = [ 'traceroute', '-6' ]
+
     src = []
     if request.path == '/traceroute6': 
-	o = "-6"
+	traceroute = traceroute6
 	if app.config.get("IPV6_SOURCE",""):
 	     src = [ "-s",  app.config.get("IPV6_SOURCE") ]
 
     else: 
-	o = "-4"
+	traceroute = traceroute4
 	if app.config.get("IPV4_SOURCE",""):
 	     src = [ "-s",  app.config.get("IPV4_SOURCE") ]
 
     query = request.args.get("q","")
     query = unquote(query)
 
-    command = [ 'traceroute' , o ] + src + [ '-A', '-q1', '-N32', '-w1', '-m15', query ]
+    if sys.platform.startswith('freebsd') or sys.platform.startswith('netbsd'):
+        options = [ '-a', '-q1', '-w1', '-m15' ]
+    elif sys.platform.startswith('openbsd'):
+        options = [ '-A', '-q1', '-w1', '-m15' ]
+    else: # For Linux
+        options = [ '-A', '-q1', '-N32', '-w1', '-m15' ]
+    command = traceroute + src + options + [ query ]
     result = subprocess.Popen( command , stdout=subprocess.PIPE).communicate()[0].decode('utf-8', 'ignore').replace("\n","<br>")
     
     return result

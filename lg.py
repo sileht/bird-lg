@@ -29,7 +29,7 @@ from urllib import quote, unquote
 import json
 import random
 
-from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve, save_cache_pickle, load_cache_pickle, get_asn_from_as, unescape
+from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve, save_cache_pickle, load_cache_pickle, unescape
 #from xml.sax.saxutils import escape
 
 
@@ -44,6 +44,15 @@ app.debug = app.config["DEBUG"]
 file_handler = TimedRotatingFileHandler(filename=app.config["LOG_FILE"], when="midnight")
 file_handler.setLevel(getattr(logging, app.config["LOG_LEVEL"].upper()))
 app.logger.addHandler(file_handler)
+
+
+def get_asn_from_as(n):
+    asn_zone = app.config.get("ASN_ZONE", "asn.cymru.com")
+    try:
+        data = resolve("AS%s.%s" % (n, asn_zone) ,"TXT").replace("'","").replace('"','')
+    except:
+        return " "*5
+    return [ field.strip() for field in data.split("|") ]
 
 
 def add_links(text):
@@ -96,7 +105,10 @@ def set_session(request_type, hosts, proto, request_args):
 
 
 def whois_command(query):
-    return subprocess.Popen(['whois', query], stdout=subprocess.PIPE).communicate()[0].decode('utf-8', 'ignore')
+    server = []
+    if app.config.get("WHOIS_SERVER", ""):
+        server = [ "-h", app.config.get("WHOIS_SERVER") ]
+    return subprocess.Popen(['whois'] + server + [query], stdout=subprocess.PIPE).communicate()[0].decode('utf-8', 'ignore')
 
 
 def bird_command(host, proto, query):
@@ -458,7 +470,10 @@ def show_bgpmap():
 
                 
                 add_node(_as, fillcolor=(first and "#F5A9A9" or "white"))
-                edge = add_edge(nodes[previous_as], nodes[_as] , label=hop_label, fontsize="7")
+                if hop_label:
+                    edge = add_edge(nodes[previous_as], nodes[_as], label=hop_label, fontsize="7")
+                else:
+                    edge = add_edge(nodes[previous_as], nodes[_as], fontsize="7")
 
                 hop_label = ""
 
@@ -605,4 +620,4 @@ def show_route(request_type, hosts, proto):
 
 
 if __name__ == "__main__":
-    app.run("0.0.0.0")
+    app.run(app.config.get("BIND_IP", "0.0.0.0"), app.config.get("BIND_PORT", 5000))
