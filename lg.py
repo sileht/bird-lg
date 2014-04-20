@@ -47,6 +47,7 @@ file_handler.setLevel(getattr(logging, app.config["LOG_LEVEL"].upper()))
 app.logger.addHandler(file_handler)
 
 memcache_server = app.config.get("MEMCACHE_SERVER", "127.0.0.1:11211")
+memcache_expiration = int(app.config.get("MEMCACHE_EXPIRATION", "1296000")) # 15 days by default
 mc = memcache.Client([memcache_server])
 
 def get_asn_from_as(n):
@@ -378,7 +379,7 @@ def get_as_name(_as):
         app.logger.info("asn for as %s not found in memcache", _as)
         name = get_asn_from_as(_as)[-1].replace(" ","\r",1)
         if name:
-            mc.set(str("lg_%s" % _as), str(name), 3600)
+            mc.set(str("lg_%s" % _as), str(name), memcache_expiration)
     return "AS%s | %s" % (_as, name)
 
 
