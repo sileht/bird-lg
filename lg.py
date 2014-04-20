@@ -20,6 +20,7 @@
 #
 ###
 
+import memcache
 import subprocess
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -45,6 +46,8 @@ file_handler = TimedRotatingFileHandler(filename=app.config["LOG_FILE"], when="m
 file_handler.setLevel(getattr(logging, app.config["LOG_LEVEL"].upper()))
 app.logger.addHandler(file_handler)
 
+memcache_server = app.config.get("MEMCACHE_SERVER", "127.0.0.1:11211")
+mc = memcache.Client([memcache_server])
 
 def get_asn_from_as(n):
     asn_zone = app.config.get("ASN_ZONE", "asn.cymru.com")
@@ -370,7 +373,12 @@ def get_as_name(_as):
     if not _as.isdigit():
         return _as.strip()
 
-    name = get_asn_from_as(_as)[-1].replace(" ","\r",1)
+    name = mc.get(str('lg_%s' % _as))
+    if not name:
+        app.logger.info("asn for as %s not found in memcache", _as)
+        name = get_asn_from_as(_as)[-1].replace(" ","\r",1)
+        if name:
+            mc.set(str("lg_%s" % _as), str(name), 3600)
     return "AS%s | %s" % (_as, name)
 
 

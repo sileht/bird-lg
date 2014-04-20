@@ -24,8 +24,12 @@ import socket
 import pickle
 import xml.parsers.expat
 
+resolv = resolver.Resolver()
+resolv.timeout = 0.5
+resolv.lifetime = 1
+
 def resolve(n, q):
-	return str(resolver.query(n,q)[0])
+	return str(resolv.query(n,q)[0])
 
 def mask_is_valid(n):
 	if not n: 
