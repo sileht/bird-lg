@@ -20,18 +20,18 @@
 #
 ###
 
-import memcache
-import subprocess
-import logging
 from logging.handlers import TimedRotatingFileHandler
-import re
-from urllib2 import urlopen
 from urllib import quote, unquote
+from urllib2 import urlopen
 import json
+import logging
+import memcache
 import random
+import re
+import subprocess
 
 from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve, save_cache_pickle, load_cache_pickle, unescape
-#from xml.sax.saxutils import escape
+# from xml.sax.saxutils import escape
 
 
 import pydot
@@ -47,16 +47,17 @@ file_handler.setLevel(getattr(logging, app.config["LOG_LEVEL"].upper()))
 app.logger.addHandler(file_handler)
 
 memcache_server = app.config.get("MEMCACHE_SERVER", "127.0.0.1:11211")
-memcache_expiration = int(app.config.get("MEMCACHE_EXPIRATION", "1296000")) # 15 days by default
+memcache_expiration = int(app.config.get("MEMCACHE_EXPIRATION", "1296000"))  # 15 days by default
 mc = memcache.Client([memcache_server])
+
 
 def get_asn_from_as(n):
     asn_zone = app.config.get("ASN_ZONE", "asn.cymru.com")
     try:
-        data = resolve("AS%s.%s" % (n, asn_zone) ,"TXT").replace("'","").replace('"','')
+        data = resolve("AS%s.%s" % (n, asn_zone), "TXT").replace("'", "").replace('"', '')
     except:
-        return " "*5
-    return [ field.strip() for field in data.split("|") ]
+        return " " * 5
+    return [field.strip() for field in data.split("|")]
 
 
 def add_links(text):
@@ -69,8 +70,7 @@ def add_links(text):
     ret_text = []
     for line in text:
         # Some heuristic to create link
-        if line.strip().startswith("BGP.as_path:") or \
-            line.strip().startswith("Neighbor AS:"):
+        if line.strip().startswith("BGP.as_path:") or line.strip().startswith("Neighbor AS:"):
             ret_text.append(re.sub(r'(\d+)', r'<a href="/whois?q=\1" class="whois">\1</a>', line))
         else:
             line = re.sub(r'([a-zA-Z0-9\-]*\.([a-zA-Z]{2,3}){1,2})(\s|$)', r'<a href="/whois?q=\1" class="whois">\1</a>\3', line)
@@ -111,7 +111,7 @@ def set_session(request_type, hosts, proto, request_args):
 def whois_command(query):
     server = []
     if app.config.get("WHOIS_SERVER", ""):
-        server = [ "-h", app.config.get("WHOIS_SERVER") ]
+        server = ["-h", app.config.get("WHOIS_SERVER")]
     return subprocess.Popen(['whois'] + server + [query], stdout=subprocess.PIPE).communicate()[0].decode('utf-8', 'ignore')
 
 
@@ -143,7 +143,12 @@ def bird_proxy(host, proto, service, query):
     elif not path:
         return False, 'Proto "%s" invalid' % proto
     else:
-        url = "http://%s.%s:%d/%s?q=%s" % (host, app.config["DOMAIN"], port, path, quote(query))
+        if app.config.get('BIRD_HAS_FULL_VIEW'):
+            url = 'http://{}:{}/{}?q={}'.format(app.config['ROUTER_IP'][host][0], port, path, quote(query))
+        else:
+            # FIXME: debug
+            url = 'http://{}:{}/{}?q={}'.format(app.config['ROUTER_IP'][host][0], port, path, quote(query))
+            # url = "http://%s.%s:%d/%s?q=%s" % (host, app.config["DOMAIN"], port, path, quote(query))
         try:
             f = urlopen(url)
             resultat = f.read()
@@ -157,18 +162,18 @@ def bird_proxy(host, proto, service, query):
 @app.context_processor
 def inject_commands():
     commands = [
-            ("traceroute", "traceroute ..."),
-            ("summary", "show protocols"),
-            ("detail", "show protocols ... all"),
-            ("prefix", "show route for ..."),
-            ("prefix_detail", "show route for ... all"),
-            ("prefix_bgpmap", "show route for ... (bgpmap)"),
-            ("where", "show route where net ~ [ ... ]"),
-            ("where_detail", "show route where net ~ [ ... ] all"),
-            ("where_bgpmap", "show route where net ~ [ ... ] (bgpmap)"),
-            ("adv", "show route ..."),
-            ("adv_bgpmap", "show route ... (bgpmap)"),
-        ]
+        ("traceroute", "traceroute ..."),
+        ("summary", "show protocols"),
+        ("detail", "show protocols ... all"),
+        ("prefix", "show route for ..."),
+        ("prefix_detail", "show route for ... all"),
+        ("prefix_bgpmap", "show route for ... (bgpmap)"),
+        ("where", "show route where net ~ [ ... ]"),
+        ("where_detail", "show route where net ~ [ ... ] all"),
+        ("where_bgpmap", "show route where net ~ [ ... ] (bgpmap)"),
+        ("adv", "show route ..."),
+        ("adv_bgpmap", "show route ... (bgpmap)"),
+    ]
     commands_dict = {}
     for id, text in commands:
         commands_dict[id] = text
@@ -198,9 +203,11 @@ def incorrect_request(e):
 def page_not_found(e):
         return render_template('error.html', warnings=["The requested URL was not found on the server."]), 404
 
+
 def get_query():
     q = unquote(request.args.get('q', '').strip())
     return q
+
 
 @app.route("/whois")
 def whois():
@@ -317,7 +324,6 @@ def traceroute(hosts, proto):
             errors.append("%s" % resultat)
             continue
 
-
         infos[host] = add_links(resultat)
     return render_template('traceroute.html', infos=infos, errors=errors)
 
@@ -377,7 +383,7 @@ def get_as_name(_as):
     name = mc.get(str('lg_%s' % _as))
     if not name:
         app.logger.info("asn for as %s not found in memcache", _as)
-        name = get_asn_from_as(_as)[-1].replace(" ","\r",1)
+        name = get_asn_from_as(_as)[-1].replace(" ", "\r", 1)
         if name:
             mc.set(str("lg_%s" % _as), str(name), memcache_expiration)
     return "AS%s | %s" % (_as, name)
@@ -415,7 +421,7 @@ def show_bgpmap():
 
     def add_node(_as, **kwargs):
         if _as not in nodes:
-            kwargs["label"] = '<<TABLE CELLBORDER="0" BORDER="0" CELLPADDING="0" CELLSPACING="0"><TR><TD ALIGN="CENTER">' + escape(kwargs.get("label", get_as_name(_as))).replace("\r","<BR/>") + "</TD></TR></TABLE>>"
+            kwargs["label"] = '<<TABLE CELLBORDER="0" BORDER="0" CELLPADDING="0" CELLSPACING="0"><TR><TD ALIGN="CENTER">' + escape(kwargs.get("label", get_as_name(_as))).replace("\r", "<BR/>") + "</TD></TR></TABLE>>"
             nodes[_as] = pydot.Node(_as, style="filled", fontsize="10", **kwargs)
             graph.add_node(nodes[_as])
         return nodes[_as]
@@ -433,26 +439,27 @@ def show_bgpmap():
             e = edges[edge_tuple]
 
             label_without_star = kwargs["label"].replace("*", "")
-            labels = e.get_label().split("\r") 
+            labels = e.get_label().split("\r")
             if "%s*" % label_without_star not in labels:
-                labels = [ kwargs["label"] ]  + [ l for l in labels if not l.startswith(label_without_star) ] 
-                labels = sorted(labels, cmp=lambda x,y: x.endswith("*") and -1 or 1)
-                
+                labels = [kwargs["label"]] + [l for l in labels if not l.startswith(label_without_star)]
+                labels = sorted(labels, cmp=lambda x, y: x.endswith("*") and -1 or 1)
+
                 label = escape("\r".join(labels))
                 e.set_label(label)
         return edges[edge_tuple]
 
     for host, asmaps in data.iteritems():
-        add_node(host, label= "%s\r%s" % (host.upper(), app.config["DOMAIN"].upper()), shape="box", fillcolor="#F5A9A9")
+        add_node(host, label="%s\r%s" % (host.upper(), app.config["DOMAIN"].upper()), shape="box", fillcolor="#F5A9A9")
 
-        as_number = app.config["AS_NUMBER"].get(host, None)
+        # as_number = app.config["AS_NUMBER"].get(host, None)
+        as_number = app.config["AS_NUMBER"].get(host, '6453')  # FIXME: debug
         if as_number:
             node = add_node(as_number, fillcolor="#F5A9A9")
             edge = add_edge(as_number, nodes[host])
             edge.set_color("red")
             edge.set_style("bold")
-    
-    #colors = [ "#009e23", "#1a6ec1" , "#d05701", "#6f879f", "#939a0e", "#0e9a93", "#9a0e85", "#56d8e1" ]
+
+    # colors = [ "#009e23", "#1a6ec1" , "#d05701", "#6f879f", "#939a0e", "#0e9a93", "#9a0e85", "#56d8e1" ]
     previous_as = None
     hosts = data.keys()
     for host, asmaps in data.iteritems():
@@ -470,14 +477,13 @@ def show_bgpmap():
                 if not hop:
                     hop = True
                     if _as not in hosts:
-                        hop_label = _as 
+                        hop_label = _as
                         if first:
                             hop_label = hop_label + "*"
                         continue
                     else:
                         hop_label = ""
 
-                
                 add_node(_as, fillcolor=(first and "#F5A9A9" or "white"))
                 if hop_label:
                     edge = add_edge(nodes[previous_as], nodes[_as], label=hop_label, fontsize="7")
@@ -500,7 +506,7 @@ def show_bgpmap():
         node = add_node(previous_as)
         node.set_shape("box")
 
-    #return Response("<pre>" + graph.create_dot() + "</pre>")
+    # return Response("<pre>" + graph.create_dot() + "</pre>")
     return Response(graph.create_png(), mimetype='image/png')
 
 
@@ -510,10 +516,14 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
     path = None
     paths = []
     net_dest = None
+
+    re_via = re.compile(r'(.*)via\s+([0-9a-fA-F:\.]+)\s+on.*\[(\w+)\s+')
+    re_unreachable = re.compile(r'(.*)unreachable\s+\[(\w+)\s+')
+
     for line in text:
         line = line.strip()
 
-        expr = re.search(r'(.*)via\s+([0-9a-fA-F:\.]+)\s+on.*\[(\w+)\s+', line)
+        expr = re_via.search(line)
         if expr:
             if path:
                 path.append(net_dest)
@@ -533,10 +543,10 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
                     break
             else:
                 # ugly hack for good printing
-                path = [ peer_protocol_name ]
-#                path = ["%s\r%s" % (peer_protocol_name, get_as_name(get_as_number_from_protocol_name(host, proto, peer_protocol_name)))]
-        
-        expr2 = re.search(r'(.*)unreachable\s+\[(\w+)\s+', line)
+                path = [peer_protocol_name]
+                # path = ["%s\r%s" % (peer_protocol_name, get_as_name(get_as_number_from_protocol_name(host, proto, peer_protocol_name)))]
+
+        expr2 = re_unreachable.search(line)
         if expr2:
             if path:
                 path.append(net_dest)
@@ -548,12 +558,76 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
 
         if line.startswith("BGP.as_path:"):
             path.extend(line.replace("BGP.as_path:", "").strip().split(" "))
-    
+
     if path:
         path.append(net_dest)
         paths.append(path)
 
     return paths
+
+
+def build_as_tree_from_full_view(host, proto, res):
+    # FIXME: debug
+    # {u'noc.chi1.us': [[u'chi1', u'31133', u'6697', u'193.232.248.0/22']],
+    #  u'noc.dal1.us': [[u'dal1', u'31133', u'6697', u'193.232.248.0/22']],
+    #  u'noc.sng2.sg': [[u'sng2', u'31133', u'6697', u'193.232.248.0/22']],
+    #  u'noc.war1.pl': [[u'war1', u'31133', u'6697', u'193.232.248.0/22']],
+    #  u'rc1.ash1.us': [[u'ash1', u'31133', u'6697', u'193.232.248.0/22']],
+    #  u'rc1.atl1.us': [[u'atl1', u'31133', u'6697', u'193.232.248.0/22']],
+    #  u'rc1.fra6.de': [[u'fra6', u'31133', u'6697', u'193.232.248.0/22']],
+    #  u'rc1.lax1.us': [[u'lax1', u'31133', u'6697', u'193.232.248.0/22']],
+    #  u'rc1.lon1.uk': [[u'lon1', u'31133', u'6697', u'193.232.248.0/22']],
+    #  u'rc1.nyc1.us': [[u'nyc1', u'31133', u'6697', u'193.232.248.0/22']],
+    #  u'rc1.par2.fr': [[u'par2', u'31133', u'6697', u'193.232.248.0/22']],
+    #  u'rc1.sjo1.us': [[u'sjo1', u'31133', u'6697', u'193.232.248.0/22']]}
+    # {'ginwyntcore2': [['ginwyntcore2', '9002', '6697', '193.232.248.0/22']]}
+
+    re_chunk_start = re.compile(r'(.*)unreachable\s+\[(.*)\s+.*\s+from\s+(.*)\].*\(.*\)\s\[.*\]')
+    result = dict()
+    dest_subnet = None
+
+    for line in res:
+        line = line.strip()
+        expr = re_chunk_start.search(line)
+
+        if expr:
+            # Beginning of the BGP reply chunk
+            if not dest_subnet:
+                dest_subnet = expr.group(1).strip()
+
+            router_tag = expr.group(2).strip()
+            router_ip = expr.group(3).strip()
+            result[router_ip] = list()
+
+        elif line.startswith('BGP.as_path:'):
+            # BGP AS path
+            line = line.replace('BGP.as_path:', '')
+            line = line.strip()
+            path = [router_tag, ]
+            for as_num in line.split(' '):
+                if as_num:
+                    path.append(as_num)
+
+            path.append(dest_subnet)
+            result[router_ip].append(path)
+
+        elif line.startswith('BGP.community:'):
+            # BGP community
+            line = line.replace('BGP.community:', '')
+            line = line.strip()
+
+        elif line.startswith('BGP.cluster_list:'):
+            # BGP cluster size
+            line = line.replace('BGP.cluster_list:', '')
+            line = line.strip()
+
+    # Sort and filter out result
+    # 0. Breakdown by possible BGP pathes
+    # 1. Sort by BGP path length, shortest first
+    # 2. Sort by cluster size, smallest first
+    # 3. Sort by community (?)
+
+    return result
 
 
 def show_route(request_type, hosts, proto):
@@ -618,7 +692,10 @@ def show_route(request_type, hosts, proto):
             continue
 
         if bgpmap:
-            detail[host] = build_as_tree_from_raw_bird_ouput(host, proto, res)
+            if app.config['BIRD_HAS_FULL_VIEW']:
+                detail = build_as_tree_from_full_view(host, proto, res)
+            else:
+                detail[host] = build_as_tree_from_raw_bird_ouput(host, proto, res)
         else:
             detail[host] = add_links(res)
 
