@@ -66,6 +66,7 @@ def check_features():
 @app.route("/traceroute6")
 def traceroute():
     check_accesslist()
+    check_features()
 
     if sys.platform.startswith('freebsd') or sys.platform.startswith('netbsd') or sys.platform.startswith('openbsd'):
         traceroute4 = ['traceroute']
@@ -77,13 +78,12 @@ def traceroute():
     src = []
     if request.path == '/traceroute6':
         traceroute = traceroute6
-    if app.config.get("IPV6_SOURCE", ""):
-        src = ["-s", app.config.get("IPV6_SOURCE")]
-
+        if app.config.get("IPV6_SOURCE", ""):
+            src = ["-s", app.config.get("IPV6_SOURCE")]
     else:
         traceroute = traceroute4
-    if app.config.get("IPV4_SOURCE", ""):
-        src = ["-s", app.config.get("IPV4_SOURCE")]
+        if app.config.get("IPV4_SOURCE", ""):
+            src = ["-s", app.config.get("IPV4_SOURCE")]
 
     query = request.args.get("q", "")
     query = unquote(query)
@@ -104,6 +104,7 @@ def traceroute():
 @app.route("/bird6")
 def bird():
     check_accesslist()
+    check_features()
 
     if request.path == "/bird":
         b = BirdSocket(file=app.config.get('SOCKET_PATH').get(4))
