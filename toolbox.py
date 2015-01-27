@@ -19,18 +19,30 @@
 #
 ###
 
-from dns import resolver
+from dns import resolver, reversename
 import socket
 import pickle
 import xml.parsers.expat
+
+from flask import Flask
+
 
 resolv = resolver.Resolver()
 resolv.timeout = 0.5
 resolv.lifetime = 1
 
+app = Flask(__name__)
+app.config.from_pyfile('lg.cfg')
+
 
 def resolve(n, q):
     return str(resolv.query(n, q)[0])
+
+
+def resolve_ptr(ip):
+    ptr = str(resolve(reversename.from_address(ip), 'PTR')).lower()
+    ptr = ptr.replace(app.config.get('ROUTER_NAME_REMOVE', ''), '')
+    return ptr
 
 
 def mask_is_valid(n):

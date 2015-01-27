@@ -20,6 +20,7 @@
 #
 ###
 
+from collections import defaultdict
 from logging.handlers import TimedRotatingFileHandler
 from urllib import quote, unquote
 from urllib2 import urlopen
@@ -30,12 +31,11 @@ import random
 import re
 import subprocess
 
-from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve, save_cache_pickle, load_cache_pickle, unescape
-# from xml.sax.saxutils import escape
+from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve, resolve_ptr, save_cache_pickle, load_cache_pickle, unescape
 
-
-import pydot
+from dns.resolver import NXDOMAIN
 from flask import Flask, render_template, jsonify, redirect, session, request, abort, Response, Markup
+import pydot
 
 app = Flask(__name__)
 app.config.from_pyfile('lg.cfg')
@@ -143,12 +143,7 @@ def bird_proxy(host, proto, service, query):
     elif not path:
         return False, 'Proto "%s" invalid' % proto
     else:
-        if app.config.get('BIRD_HAS_FULL_VIEW'):
-            url = 'http://{}:{}/{}?q={}'.format(app.config['ROUTER_IP'][host][0], port, path, quote(query))
-        else:
-            # FIXME: debug
-            url = 'http://{}:{}/{}?q={}'.format(app.config['ROUTER_IP'][host][0], port, path, quote(query))
-            # url = "http://%s.%s:%d/%s?q=%s" % (host, app.config["DOMAIN"], port, path, quote(query))
+        url = 'http://{}:{}/{}?q={}'.format(app.config['ROUTER_IP'][host][0], port, path, quote(query))
         try:
             f = urlopen(url)
             resultat = f.read()
@@ -451,8 +446,7 @@ def show_bgpmap():
     for host, asmaps in data.iteritems():
         add_node(host, label="%s\r%s" % (host.upper(), app.config["DOMAIN"].upper()), shape="box", fillcolor="#F5A9A9")
 
-        # as_number = app.config["AS_NUMBER"].get(host, None)
-        as_number = app.config["AS_NUMBER"].get(host, '6453')  # FIXME: debug
+        as_number = app.config["AS_NUMBER"].get(host, None)
         if as_number:
             node = add_node(as_number, fillcolor="#F5A9A9")
             edge = add_edge(as_number, nodes[host])
@@ -475,8 +469,11 @@ def show_bgpmap():
                     continue
 
                 if not hop:
-                    hop = True
-                    if _as not in hosts:
+                    if app.config.get('BIRD_HAS_FULL_VIEW', False):
+                        hop = True
+                        hop_label = ''
+                        continue
+                    elif _as not in hosts:
                         hop_label = _as
                         if first:
                             hop_label = hop_label + "*"
@@ -567,24 +564,9 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
 
 
 def build_as_tree_from_full_view(host, proto, res):
-    # FIXME: debug
-    # {u'noc.chi1.us': [[u'chi1', u'31133', u'6697', u'193.232.248.0/22']],
-    #  u'noc.dal1.us': [[u'dal1', u'31133', u'6697', u'193.232.248.0/22']],
-    #  u'noc.sng2.sg': [[u'sng2', u'31133', u'6697', u'193.232.248.0/22']],
-    #  u'noc.war1.pl': [[u'war1', u'31133', u'6697', u'193.232.248.0/22']],
-    #  u'rc1.ash1.us': [[u'ash1', u'31133', u'6697', u'193.232.248.0/22']],
-    #  u'rc1.atl1.us': [[u'atl1', u'31133', u'6697', u'193.232.248.0/22']],
-    #  u'rc1.fra6.de': [[u'fra6', u'31133', u'6697', u'193.232.248.0/22']],
-    #  u'rc1.lax1.us': [[u'lax1', u'31133', u'6697', u'193.232.248.0/22']],
-    #  u'rc1.lon1.uk': [[u'lon1', u'31133', u'6697', u'193.232.248.0/22']],
-    #  u'rc1.nyc1.us': [[u'nyc1', u'31133', u'6697', u'193.232.248.0/22']],
-    #  u'rc1.par2.fr': [[u'par2', u'31133', u'6697', u'193.232.248.0/22']],
-    #  u'rc1.sjo1.us': [[u'sjo1', u'31133', u'6697', u'193.232.248.0/22']]}
-    # {'ginwyntcore2': [['ginwyntcore2', '9002', '6697', '193.232.248.0/22']]}
-
     re_chunk_start = re.compile(r'(.*)unreachable\s+\[(.*)\s+.*\s+from\s+(.*)\].*\(.*\)\s\[.*\]')
-    result = dict()
     dest_subnet = None
+    raw = defaultdict(dict)
 
     for line in res:
         line = line.strip()
@@ -597,7 +579,12 @@ def build_as_tree_from_full_view(host, proto, res):
 
             router_tag = expr.group(2).strip()
             router_ip = expr.group(3).strip()
-            result[router_ip] = list()
+
+            try:
+                router_ip = resolve_ptr(router_ip)
+            except NXDOMAIN:
+                # If PTR record can't be found, IP will do too
+                pass
 
         elif line.startswith('BGP.as_path:'):
             # BGP AS path
@@ -608,24 +595,57 @@ def build_as_tree_from_full_view(host, proto, res):
                 if as_num:
                     path.append(as_num)
 
-            path.append(dest_subnet)
-            result[router_ip].append(path)
+            path_tag = '+'.join(path[1:])
+
+            if path_tag not in raw:
+                raw[path_tag] = list()
+
+            raw[path_tag].append(dict(router_tag=router_tag, router_ip=router_ip, path=path))
 
         elif line.startswith('BGP.community:'):
             # BGP community
             line = line.replace('BGP.community:', '')
             line = line.strip()
+            raw[path_tag][-1]['community'] = line.split(' ')
 
         elif line.startswith('BGP.cluster_list:'):
             # BGP cluster size
             line = line.replace('BGP.cluster_list:', '')
             line = line.strip()
+            raw[path_tag][-1]['cluster_size'] = len(line.split(' '))
 
-    # Sort and filter out result
-    # 0. Breakdown by possible BGP pathes
-    # 1. Sort by BGP path length, shortest first
-    # 2. Sort by cluster size, smallest first
-    # 3. Sort by community (?)
+    for path_tag in raw:
+        raw[path_tag] = iter(raw[path_tag])
+
+    result = defaultdict(list)
+    exhausted_tags = set()
+    existing_paths_num = len(raw)
+    if len(raw) > app.config.get('MAX_PATHS', 10):
+        max_paths = existing_paths_num
+    else:
+        max_paths = app.config.get('MAX_PATHS', 10)
+    path_count = 0
+
+    while path_count < max_paths:
+        for path_tag in sorted(raw, key=lambda x: x.count('+')):
+            if path_tag in exhausted_tags:
+                continue
+
+            try:
+                path = next(raw[path_tag])
+            except StopIteration:
+                exhausted_tags.add(path_tag)
+                continue
+
+            result[path['router_ip']].append(path['path'])
+            result[path['router_ip']][-1].append(dest_subnet)
+
+            path_count += 1
+            if path_count == max_paths:
+                break
+
+        if path_count == max_paths or len(exhausted_tags) == existing_paths_num:
+            break
 
     return result
 
