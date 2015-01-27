@@ -1,2 +1,52 @@
-*.pyc
-*.pyo
+# Python
+*.py[co]
+*.egg
+*.egg-info
+dist
+build
+eggs
+parts
+bin
+var
+sdist
+tmp
+develop-eggs
+share
+.installed.cfg
+pip-log.txt
+
+# Nose
+.coverage
+.tox
+
+# Translations
+*.mo
+
+# Mr Developer
+.mr.developer.cfg
+
+# Others
+*~
+*#
+.#*
+*.orig
+data
+lg.log*
+
+# Virtualenv
+.Python
+include
+lib
+local
+man
+
+# Sphinx
+doc/build/
+
+# Database
+db/*
+
+# Local development
+local.yaml
+local.ini
+
