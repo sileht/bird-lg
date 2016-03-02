@@ -20,6 +20,7 @@
 #
 ###
 
+from datetime import datetime
 import memcache
 import subprocess
 import logging
@@ -406,6 +407,7 @@ def show_bgpmap():
 
     nodes = {}
     edges = {}
+    prepend_as = {}
 
     def escape(label):
         label = label.replace("&", "&amp;")
@@ -465,6 +467,7 @@ def show_bgpmap():
             hop_label = ""
             for _as in asmap:
                 if _as == previous_as:
+                    prepend_as[_as] = prepend_as.get(_as, 1) + 1
                     continue
 
                 if not hop:
@@ -500,8 +503,17 @@ def show_bgpmap():
         node = add_node(previous_as)
         node.set_shape("box")
 
-    #return Response("<pre>" + graph.create_dot() + "</pre>")
-    return Response(graph.create_png(), mimetype='image/png')
+    for _as in prepend_as:
+        graph.add_edge(pydot.Edge(*(_as, _as), label=" %dx" % prepend_as[_as], color="grey", fontcolor="grey"))
+
+    #response = Response("<pre>" + graph.create_dot() + "</pre>")
+    response = Response(graph.create_png(), mimetype='image/png')
+    response.headers['Last-Modified'] = datetime.now()
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '-1'
+    return response
+
 
 
 def build_as_tree_from_raw_bird_ouput(host, proto, text):
