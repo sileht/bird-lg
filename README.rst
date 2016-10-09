@@ -4,7 +4,7 @@ BIRD-LG
 This is a looking glass for the Internet Routing Daemon "Bird".
 
 
-Software is split in two parts:
+Software is split in two parts::
 
  - lgproxy.py:
 
@@ -23,11 +23,11 @@ Software is split in two parts:
                                          ***************
                                     +--> * lgproxy.py *
                                     |    ***************
-                                    |  
+                                    |
 ********       *******************  |    ***************
 * USER * ----> * webserver/lg.py *--+--> * lgproxy.py *
 ********       *******************  |    ***************
-                                    |  
+                                    |
                                     |    ***************
                                     +--> * lgproxy.py *
                                          ***************
@@ -36,9 +36,9 @@ Software is split in two parts:
 
 bird-lg depends on :
 
- - python-flask  >= 0.8
- - python-dnspython
- - python-pydot
+* python-flask  >= 0.9
+* python-dnspython
+* python-pydot
 
 Each services can be embedded in any webserver by following regular python-flask configuration.
 

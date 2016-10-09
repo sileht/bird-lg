@@ -435,11 +435,11 @@ def show_bgpmap():
             e = edges[edge_tuple]
 
             label_without_star = kwargs["label"].replace("*", "")
-            labels = e.get_label().split("\r") 
+            labels = e.get_label().split("\r")
             if "%s*" % label_without_star not in labels:
-                labels = [ kwargs["label"] ]  + [ l for l in labels if not l.startswith(label_without_star) ] 
+                labels = [ kwargs["label"] ]  + [ l for l in labels if not l.startswith(label_without_star) ]
                 labels = sorted(labels, cmp=lambda x,y: x.endswith("*") and -1 or 1)
-                
+
                 label = escape("\r".join(labels))
                 e.set_label(label)
         return edges[edge_tuple]
@@ -453,7 +453,7 @@ def show_bgpmap():
             edge = add_edge(as_number, nodes[host])
             edge.set_color("red")
             edge.set_style("bold")
-    
+
     #colors = [ "#009e23", "#1a6ec1" , "#d05701", "#6f879f", "#939a0e", "#0e9a93", "#9a0e85", "#56d8e1" ]
     previous_as = None
     hosts = data.keys()
@@ -473,14 +473,14 @@ def show_bgpmap():
                 if not hop:
                     hop = True
                     if _as not in hosts:
-                        hop_label = _as 
+                        hop_label = _as
                         if first:
                             hop_label = hop_label + "*"
                         continue
                     else:
                         hop_label = ""
 
-                
+
                 add_node(_as, fillcolor=(first and "#F5A9A9" or "white"))
                 if hop_label:
                     edge = add_edge(nodes[previous_as], nodes[_as], label=hop_label, fontsize="7")
@@ -547,7 +547,7 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
                 # ugly hack for good printing
                 path = [ peer_protocol_name ]
 #                path = ["%s\r%s" % (peer_protocol_name, get_as_name(get_as_number_from_protocol_name(host, proto, peer_protocol_name)))]
-        
+
         expr2 = re.search(r'(.*)unreachable\s+\[(\w+)\s+', line)
         if expr2:
             if path:
@@ -560,7 +560,7 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
 
         if line.startswith("BGP.as_path:"):
             path.extend(line.replace("BGP.as_path:", "").strip().split(" "))
-    
+
     if path:
         path.append(net_dest)
         paths.append(path)
