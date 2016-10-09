@@ -21,48 +21,53 @@
 ###
 
 from datetime import datetime
-import memcache
-import subprocess
-import logging
-from logging.handlers import TimedRotatingFileHandler
-import re
-from urllib2 import urlopen
-from urllib import quote, unquote
 import json
+import logging
+from logging import handlers
+import memcache
 import random
+import re
+import subprocess
+import urllib
+from urllib2 import urlopen
 
-from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve, save_cache_pickle, load_cache_pickle, unescape
-#from xml.sax.saxutils import escape
-
-
+from dns import exception as dns_exc
+import flask
 import pydot
-from flask import Flask, render_template, jsonify, redirect, session, request, abort, Response, Markup
+# from flask import Flask, render_template, jsonify, redirect, session, request
+# from flask import abort, Response, Markup
 
-app = Flask(__name__)
+import toolbox
+
+app = flask.Flask(__name__)
 app.config.from_pyfile('lg.cfg')
 app.secret_key = app.config["SESSION_KEY"]
 app.debug = app.config["DEBUG"]
 
-file_handler = TimedRotatingFileHandler(filename=app.config["LOG_FILE"], when="midnight")
+file_handler = handlers.TimedRotatingFileHandler(
+    filename=app.config["LOG_FILE"], when="midnight")
 file_handler.setLevel(getattr(logging, app.config["LOG_LEVEL"].upper()))
 app.logger.addHandler(file_handler)
 
+
+# NOTE(sileht): 15 days by default
 memcache_server = app.config.get("MEMCACHE_SERVER", "127.0.0.1:11211")
-memcache_expiration = int(app.config.get("MEMCACHE_EXPIRATION", "1296000")) # 15 days by default
+memcache_expiration = int(app.config.get("MEMCACHE_EXPIRATION", "1296000"))
 mc = memcache.Client([memcache_server])
+
 
 def get_asn_from_as(n):
     asn_zone = app.config.get("ASN_ZONE", "asn.cymru.com")
     try:
-        data = resolve("AS%s.%s" % (n, asn_zone) ,"TXT").replace("'","").replace('"','')
-    except:
-        return " "*5
-    return [ field.strip() for field in data.split("|") ]
+        data = toolbox.resolve("AS%s.%s" % (n, asn_zone), "TXT")
+        data = data.replace("'", "").replace('"', '')
+    except dns_exc.DNSException:
+        return " " * 5
+    return [field.strip() for field in data.split("|")]
 
 
 def add_links(text):
-    """Browser a string and replace ipv4, ipv6, as number, with a
-    whois link """
+    """Browser a string and replace ipv4, ipv6, as number, with a whois link"""
 
     if type(text) in [str, unicode]:
         text = text.split("\n")
@@ -71,49 +76,64 @@ def add_links(text):
     for line in text:
         # Some heuristic to create link
         if line.strip().startswith("BGP.as_path:") or \
-            line.strip().startswith("Neighbor AS:"):
-            ret_text.append(re.sub(r'(\d+)', r'<a href="/whois?q=\1" class="whois">\1</a>', line))
+                line.strip().startswith("Neighbor AS:"):
+            ret_text.append(
+                re.sub(r'(\d+)', r'<a href="/whois?q=\1" class="whois">\1</a>',
+                       line))
         else:
-            line = re.sub(r'([a-zA-Z0-9\-]*\.([a-zA-Z]{2,3}){1,2})(\s|$)', r'<a href="/whois?q=\1" class="whois">\1</a>\3', line)
-            line = re.sub(r'AS(\d+)', r'<a href="/whois?q=\1" class="whois">AS\1</a>', line)
-            line = re.sub(r'(\d+\.\d+\.\d+\.\d+)', r'<a href="/whois?q=\1" class="whois">\1</a>', line)
-            if len(request.path) >= 2:
-                hosts = "/".join(request.path.split("/")[2:])
+            line = re.sub(r'([a-zA-Z0-9\-]*\.([a-zA-Z]{2,3}){1,2})(\s|$)',
+                          r'<a href="/whois?q=\1" class="whois">\1</a>\3',
+                          line)
+            line = re.sub(r'AS(\d+)',
+                          r'<a href="/whois?q=\1" class="whois">AS\1</a>',
+                          line)
+            line = re.sub(r'(\d+\.\d+\.\d+\.\d+)',
+                          r'<a href="/whois?q=\1" class="whois">\1</a>',
+                          line)
+            if len(flask.request.path) >= 2:
+                hosts = "/".join(flask.request.path.split("/")[2:])
             else:
                 hosts = "/"
-            line = re.sub(r'\[(\w+)\s+((|\d\d\d\d-\d\d-\d\d\s)(|\d\d:)\d\d:\d\d|\w\w\w\d\d)', r'[<a href="/detail/%s?q=\1">\1</a> \2' % hosts, line)
-            line = re.sub(r'(^|\s+)(([a-f\d]{0,4}:){3,10}[a-f\d]{0,4})', r'\1<a href="/whois?q=\2" class="whois">\2</a>', line, re.I)
+            line = re.sub(r'\[(\w+)\s+((|\d\d\d\d-\d\d-\d\d\s)'
+                          r'(|\d\d:)\d\d:\d\d|\w\w\w\d\d)',
+                          r'[<a href="/detail/%s?q=\1">\1</a> \2' % hosts,
+                          line)
+            line = re.sub(r'(^|\s+)(([a-f\d]{0,4}:){3,10}[a-f\d]{0,4})',
+                          r'\1<a href="/whois?q=\2" class="whois">\2</a>',
+                          line, re.I)
             ret_text.append(line)
     return "\n".join(ret_text)
 
 
 def set_session(request_type, hosts, proto, request_args):
-    """ Store all data from user in the user session """
-    session.permanent = True
-    session.update({
+    """Store all data from user in the user session"""
+    flask.session.permanent = True
+    flask.session.update({
         "request_type": request_type,
         "hosts": hosts,
         "proto": proto,
         "request_args": request_args,
     })
-    history = session.get("history", [])
+    history = flask.session.get("history", [])
 
     # erase old format history
-    if type(history) != type(list()):
+    if not isinstance(history, list):
         history = []
 
     t = (hosts, proto, request_type, request_args)
     if t in history:
         del history[history.index(t)]
     history.insert(0, t)
-    session["history"] = history[:20]
+    flask.session["history"] = history[:20]
 
 
 def whois_command(query):
     server = []
     if app.config.get("WHOIS_SERVER", ""):
-        server = [ "-h", app.config.get("WHOIS_SERVER") ]
-    return subprocess.Popen(['whois'] + server + [query], stdout=subprocess.PIPE).communicate()[0].decode('utf-8', 'ignore')
+        server = ["-h", app.config.get("WHOIS_SERVER")]
+    p = subprocess.Popen(['whois'] + server + [query],
+                         stdout=subprocess.PIPE)
+    return p.communicate()[0].decode('utf-8', 'ignore')
 
 
 def bird_command(host, proto, query):
@@ -144,7 +164,8 @@ def bird_proxy(host, proto, service, query):
     elif not path:
         return False, 'Proto "%s" invalid' % proto
     else:
-        url = "http://%s.%s:%d/%s?q=%s" % (host, app.config["DOMAIN"], port, path, quote(query))
+        url = "http://%s.%s:%d/%s?q=%s" % (host, app.config["DOMAIN"], port,
+                                           path, urllib.quote(query))
         try:
             f = urlopen(url)
             resultat = f.read()
@@ -183,46 +204,58 @@ def inject_all_host():
 
 @app.route("/")
 def hello():
-    return redirect("/summary/%s/ipv4" % "+".join(app.config["PROXY"].keys()))
+    proxy = "+".join(app.config["PROXY"].keys())
+    return flask.redirect("/summary/%s/ipv4" % proxy)
 
 
 def error_page(text):
-    return render_template('error.html', errors=[text]), 500
+    return flask.render_template('error.html', errors=[text]), 500
 
 
 @app.errorhandler(400)
 def incorrect_request(e):
-        return render_template('error.html', warnings=["The server could not understand the request"]), 400
+    warn = ["The server could not understand the request"]
+    return flask.render_template('error.html', warnings=warn), 400
 
 
 @app.errorhandler(404)
 def page_not_found(e):
-        return render_template('error.html', warnings=["The requested URL was not found on the server."]), 404
+    warn = ["The requested URL was not found on the server."]
+    return flask.render_template('error.html', warnings=warn), 404
+
 
 def get_query():
-    q = unquote(request.args.get('q', '').strip())
+    q = urllib.unquote(flask.request.args.get('q', '').strip())
     return q
+
 
 @app.route("/whois")
 def whois():
     query = get_query()
     if not query:
-        abort(400)
+        flask.abort(400)
 
     try:
         asnum = int(query)
         query = "as%d" % asnum
-    except:
+    except ValueError:
         m = re.match(r"[\w\d-]*\.(?P<domain>[\d\w-]+\.[\d\w-]+)$", query)
         if m:
             query = query.groupdict()["domain"]
 
     output = whois_command(query).replace("\n", "<br>")
-    return jsonify(output=output, title=query)
+    return flask.jsonify(output=output, title=query)
 
 
 SUMMARY_UNWANTED_PROTOS = ["Kernel", "Static", "Device"]
-SUMMARY_RE_MATCH = r"(?P<name>[\w_]+)\s+(?P<proto>\w+)\s+(?P<table>\w+)\s+(?P<state>\w+)\s+(?P<since>((\d\d\d\d-\d\d-\d\d\s)|(\d\d:)\d\d:\d\d|\w\w\w\d\d))($|\s+(?P<info>.*))"
+SUMMARY_RE_MATCH = (
+    r"(?P<name>[\w_]+)\s+"
+    r"(?P<proto>\w+)\s+"
+    r"(?P<table>\w+)\s+"
+    r"(?P<state>\w+)\s+"
+    r"(?P<since>((\d\d\d\d-\d\d-\d\d\s)|(\d\d:)\d\d:\d\d|\w\w\w\d\d))"
+    r"($|\s+(?P<info>.*))"
+)
 
 
 @app.route("/summary/<hosts>")
@@ -243,13 +276,16 @@ def summary(hosts, proto="ipv4"):
             continue
 
         if len(res) <= 1:
-            errors.append("%s: bird command failed with error, %s" % (host, "\n".join(res)))
+            errors.append("%s: bird command failed with error, %s" %
+                          (host, "\n".join(res)))
             continue
 
         data = []
         for line in res[1:]:
             line = line.strip()
-            if line and (line.split() + [""])[1] not in SUMMARY_UNWANTED_PROTOS:
+            if not line:
+                continue
+            if (line.split() + [""])[1] not in SUMMARY_UNWANTED_PROTOS:
                 m = re.match(SUMMARY_RE_MATCH, line)
                 if m:
                     data.append(m.groupdict())
@@ -258,7 +294,9 @@ def summary(hosts, proto="ipv4"):
 
         summary[host] = data
 
-    return render_template('summary.html', summary=summary, command=command, errors=errors)
+    return flask.render_template('summary.html', summary=summary,
+                                 command=command,
+                                 errors=errors)
 
 
 @app.route("/detail/<hosts>/<proto>")
@@ -266,7 +304,7 @@ def detail(hosts, proto):
     name = get_query()
 
     if not name:
-        abort(400)
+        flask.abort(400)
 
     set_session("detail", hosts, proto, name)
     command = "show protocols all %s" % name
@@ -282,12 +320,15 @@ def detail(hosts, proto):
             continue
 
         if len(res) <= 1:
-            errors.append("%s: bird command failed with error, %s" % (host, "\n".join(res)))
+            errors.append("%s: bird command failed with error, %s" %
+                          (host, "\n".join(res)))
             continue
 
         detail[host] = {"status": res[1], "description": add_links(res[2:])}
 
-    return render_template('detail.html', detail=detail, command=command, errors=errors)
+    return flask.render_template('detail.html', detail=detail,
+                                 command=command,
+                                 errors=errors)
 
 
 @app.route("/traceroute/<hosts>/<proto>")
@@ -295,20 +336,18 @@ def traceroute(hosts, proto):
     q = get_query()
 
     if not q:
-        abort(400)
+        flask.abort(400)
 
     set_session("traceroute", hosts, proto, q)
 
-    if proto == "ipv6" and not ipv6_is_valid(q):
-        try:
-            q = resolve(q, "AAAA")
-        except:
-            return error_page("%s is unresolvable or invalid for %s" % (q, proto))
-    if proto == "ipv4" and not ipv4_is_valid(q):
-        try:
-            q = resolve(q, "A")
-        except:
-            return error_page("%s is unresolvable or invalid for %s" % (q, proto))
+    if proto == "ipv6" and not toolbox.ipv6_is_valid(q):
+        qtype = "AAAA"
+    elif proto == "ipv4" and not toolbox.ipv4_is_valid(q):
+        qtype = "A"
+    try:
+        q = toolbox.resolve(q, qtype)
+    except dns_exc.DNSException:
+        return error_page("%s is unresolvable or invalid for %s" % (q, proto))
 
     errors = []
     infos = {}
@@ -317,10 +356,9 @@ def traceroute(hosts, proto):
         if status is False:
             errors.append("%s" % resultat)
             continue
-
-
         infos[host] = add_links(resultat)
-    return render_template('traceroute.html', infos=infos, errors=errors)
+
+    return flask.render_template('traceroute.html', infos=infos, errors=errors)
 
 
 @app.route("/adv/<hosts>/<proto>")
@@ -367,7 +405,8 @@ def get_as_name(_as):
     """return a string that contain the as number following by the as name
 
     It's the use whois database informations
-    # Warning, the server can be blacklisted from ripe is too many requests are done
+    Warning, the server can be blacklisted from ripe is too many requests
+    are done
     """
     if not _as:
         return "AS?????"
@@ -378,7 +417,7 @@ def get_as_name(_as):
     name = mc.get(str('lg_%s' % _as))
     if not name:
         app.logger.info("asn for as %s not found in memcache", _as)
-        name = get_asn_from_as(_as)[-1].replace(" ","\r",1)
+        name = get_asn_from_as(_as)[-1].replace(" ", "\r", 1)
         if name:
             mc.set(str("lg_%s" % _as), str(name), memcache_expiration)
     return "AS%s | %s" % (_as, name)
@@ -399,7 +438,7 @@ def show_bgpmap():
 
     data = get_query()
     if not data:
-        abort(400)
+        flask.abort(400)
 
     data = json.loads(data)
 
@@ -417,8 +456,14 @@ def show_bgpmap():
 
     def add_node(_as, **kwargs):
         if _as not in nodes:
-            kwargs["label"] = '<<TABLE CELLBORDER="0" BORDER="0" CELLPADDING="0" CELLSPACING="0"><TR><TD ALIGN="CENTER">' + escape(kwargs.get("label", get_as_name(_as))).replace("\r","<BR/>") + "</TD></TR></TABLE>>"
-            nodes[_as] = pydot.Node(_as, style="filled", fontsize="10", **kwargs)
+            label = escape(kwargs.get("label", get_as_name(_as)))
+            kwargs["label"] = ('<<TABLE CELLBORDER="0" BORDER="0" '
+                               'CELLPADDING="0" CELLSPACING="0">'
+                               '<TR><TD ALIGN="CENTER">' +
+                               label.replace("\r", "<BR/>") +
+                               "</TD></TR></TABLE>>")
+            nodes[_as] = pydot.Node(_as, style="filled", fontsize="10",
+                                    **kwargs)
             graph.add_node(nodes[_as])
         return nodes[_as]
 
@@ -437,15 +482,19 @@ def show_bgpmap():
             label_without_star = kwargs["label"].replace("*", "")
             labels = e.get_label().split("\r")
             if "%s*" % label_without_star not in labels:
-                labels = [ kwargs["label"] ]  + [ l for l in labels if not l.startswith(label_without_star) ]
-                labels = sorted(labels, cmp=lambda x,y: x.endswith("*") and -1 or 1)
+                labels = [kwargs["label"]] + [
+                    l for l in labels if not l.startswith(label_without_star)]
+                labels = sorted(labels,
+                                cmp=lambda x, y: x.endswith("*") and -1 or 1)
 
                 label = escape("\r".join(labels))
                 e.set_label(label)
         return edges[edge_tuple]
 
     for host, asmaps in data.iteritems():
-        add_node(host, label= "%s\r%s" % (host.upper(), app.config["DOMAIN"].upper()), shape="box", fillcolor="#F5A9A9")
+        add_node(host, label="%s\r%s" % (host.upper(),
+                                         app.config["DOMAIN"].upper()),
+                 shape="box", fillcolor="#F5A9A9")
 
         as_number = app.config["AS_NUMBER"].get(host, None)
         if as_number:
@@ -454,7 +503,8 @@ def show_bgpmap():
             edge.set_color("red")
             edge.set_style("bold")
 
-    #colors = [ "#009e23", "#1a6ec1" , "#d05701", "#6f879f", "#939a0e", "#0e9a93", "#9a0e85", "#56d8e1" ]
+    # colors = ["#009e23", "#1a6ec1" , "#d05701", "#6f879f",
+    #           "#939a0e", "#0e9a93", "#9a0e85", "#56d8e1"]
     previous_as = None
     hosts = data.keys()
     for host, asmaps in data.iteritems():
@@ -480,12 +530,13 @@ def show_bgpmap():
                     else:
                         hop_label = ""
 
-
                 add_node(_as, fillcolor=(first and "#F5A9A9" or "white"))
                 if hop_label:
-                    edge = add_edge(nodes[previous_as], nodes[_as], label=hop_label, fontsize="7")
+                    edge = add_edge(nodes[previous_as], nodes[_as],
+                                    label=hop_label, fontsize="7")
                 else:
-                    edge = add_edge(nodes[previous_as], nodes[_as], fontsize="7")
+                    edge = add_edge(nodes[previous_as], nodes[_as],
+                                    fontsize="7")
 
                 hop_label = ""
 
@@ -504,16 +555,19 @@ def show_bgpmap():
         node.set_shape("box")
 
     for _as in prepend_as:
-        graph.add_edge(pydot.Edge(*(_as, _as), label=" %dx" % prepend_as[_as], color="grey", fontcolor="grey"))
+        graph.add_edge(pydot.Edge(*(_as, _as), label=" %dx" % prepend_as[_as],
+                                  color="grey", fontcolor="grey"))
 
-    #response = Response("<pre>" + graph.create_dot() + "</pre>")
-    response = Response(graph.create_png(), mimetype='image/png')
+    # response = Response("<pre>" + graph.create_dot() + "</pre>")
+    response = flask.Response(graph.create_png(), mimetype='image/png')
     response.headers['Last-Modified'] = datetime.now()
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+    response.headers['Cache-Control'] = ('no-store, no-cache, '
+                                         'must-revalidate, '
+                                         'post-check=0, pre-check=0, '
+                                         'max-age=0')
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '-1'
     return response
-
 
 
 def build_as_tree_from_raw_bird_ouput(host, proto, text):
@@ -545,8 +599,10 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
                     break
             else:
                 # ugly hack for good printing
-                path = [ peer_protocol_name ]
-#                path = ["%s\r%s" % (peer_protocol_name, get_as_name(get_as_number_from_protocol_name(host, proto, peer_protocol_name)))]
+                path = [peer_protocol_name]
+                # path = ["%s\r%s" % (peer_protocol_name,
+                #     get_as_name(get_as_number_from_protocol_name(
+                #         host, proto, peer_protocol_name)))]
 
         expr2 = re.search(r'(.*)unreachable\s+\[(\w+)\s+', line)
         if expr2:
@@ -571,7 +627,7 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
 def show_route(request_type, hosts, proto):
     expression = get_query()
     if not expression:
-        abort(400)
+        flask.abort(400)
 
     set_session(request_type, hosts, proto, expression)
 
@@ -596,19 +652,19 @@ def show_route(request_type, hosts, proto):
             mask = "32"
         if not mask and proto == "ipv6":
             mask = "128"
-        if not mask_is_valid(mask):
+        if not toolbox.mask_is_valid(mask):
             return error_page("mask %s is invalid" % mask)
 
-        if proto == "ipv6" and not ipv6_is_valid(expression):
-            try:
-                expression = resolve(expression, "AAAA")
-            except:
-                return error_page("%s is unresolvable or invalid for %s" % (expression, proto))
-        if proto == "ipv4" and not ipv4_is_valid(expression):
-            try:
-                expression = resolve(expression, "A")
-            except:
-                return error_page("%s is unresolvable or invalid for %s" % (expression, proto))
+        if proto == "ipv6" and not toolbox.ipv6_is_valid(expression):
+            qtype = "AAAA"
+        elif proto == "ipv4" and not toolbox.ipv4_is_valid(expression):
+            qtype = "A"
+
+        try:
+            expression = toolbox.resolve(expression, qtype)
+        except dns_exc.DNSException:
+            return error_page("%s is unresolvable or invalid for %s" %
+                              (expression, proto))
 
         if mask:
             expression += "/" + mask
@@ -626,7 +682,8 @@ def show_route(request_type, hosts, proto):
             continue
 
         if len(res) <= 1:
-            errors.append("%s: bird command failed with error, %s" % (host, "\n".join(res)))
+            errors.append("%s: bird command failed with error, %s" %
+                          (host, "\n".join(res)))
             continue
 
         if bgpmap:
@@ -637,8 +694,11 @@ def show_route(request_type, hosts, proto):
     if bgpmap:
         detail = json.dumps(detail)
 
-    return render_template((bgpmap and 'bgpmap.html' or 'route.html'), detail=detail, command=command, expression=expression, errors=errors)
+    return flask.render_template((bgpmap and 'bgpmap.html' or 'route.html'),
+                                 detail=detail, command=command,
+                                 expression=expression, errors=errors)
 
 
 if __name__ == "__main__":
-    app.run(app.config.get("BIND_IP", "0.0.0.0"), app.config.get("BIND_PORT", 5000))
+    app.run(app.config.get("BIND_IP", "0.0.0.0"),
+            app.config.get("BIND_PORT", 5000))
