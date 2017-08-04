@@ -58,6 +58,7 @@ Happy users
 * https://lg.gitoyen.net/
 * http://lg.as5580.net/
 * https://lg.ldn-fai.net/
+* http://lg.arn-fai.net
 * http://lg.dataix.ru/
 * https://lg.blix.com/
 * https://lg.man-da.de/
