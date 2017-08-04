@@ -41,8 +41,6 @@ bird-lg depends on :
 
 Each services can be embedded in any webserver by following regular python-flask configuration.
 
-Only tested with bird 1.2.5.
-
 Source code is under GPL 3.0, powered by Flask, jQuery and Bootstrap.
 
 Copyright © 2012 Mehdi Abaakouk <sileht@sileht.net>
