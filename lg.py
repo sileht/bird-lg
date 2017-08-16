@@ -508,6 +508,7 @@ def show_bgpmap():
     for _as in prepend_as:
         graph.add_edge(pydot.Edge(*(_as, _as), label=" %dx" % prepend_as[_as], color="grey", fontcolor="grey"))
 
+    fmt = request.args.get('fmt', 'png')
     #response = Response("<pre>" + graph.create_dot() + "</pre>")
     if fmt == "png":
         response = Response(graph.create_png(), mimetype='image/png')
