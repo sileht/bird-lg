@@ -1,5 +1,9 @@
 {% extends "layout.html" %}
 {% block body %}
+<div style="float:right">
+	<a href="/bgpmap/?killcache=1&q={{detail}}&fmt=svg" target="_blank">SVG</a>
+	<a href="/bgpmap/?killcache=1&q={{detail}}&fmt=png" target="_blank">PNG</a>
+</div>
 <h3>{{session.hosts}}: {{command}}</h3>
 {% if session.request_args != expression|replace("/32","")|replace("/128","") %}
 <i>DNS: <a href="/whois/{{session.request_args}}" class="whois">{{session.request_args}}</a> => <a href="/whois/{{ expression|replace("/32","")|replace("/128","") }}" class="whois">{{expression|replace("/32","")|replace("/128","")}}</a></i><br />

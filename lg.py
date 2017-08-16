@@ -509,8 +509,12 @@ def show_bgpmap():
         graph.add_edge(pydot.Edge(*(_as, _as), label=" %dx" % prepend_as[_as], color="grey", fontcolor="grey"))
 
     #response = Response("<pre>" + graph.create_dot() + "</pre>")
-    response = Response(graph.create_png(), mimetype='image/png')
-    # response = Response(graph.create_svg(), mimetype='image/svg+xml')
+    if fmt == "png":
+        response = Response(graph.create_png(), mimetype='image/png')
+    elif fmt == "svg":
+        response = Response(graph.create_svg(), mimetype='image/svg+xml')
+    else:
+        abort(400, "Incorrect format")
     response.headers['Last-Modified'] = datetime.now()
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
     response.headers['Pragma'] = 'no-cache'
