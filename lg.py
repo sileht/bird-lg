@@ -437,7 +437,10 @@ def show_bgpmap():
             e = edges[edge_tuple]
 
             label_without_star = kwargs["label"].replace("*", "")
-            labels = e.get_label().split("\r") 
+            if e.get_label() is not None:
+                labels = e.get_label().split("\r") 
+            else:
+                return edges[edge_tuple]
             if "%s*" % label_without_star not in labels:
                 labels = [ kwargs["label"] ]  + [ l for l in labels if not l.startswith(label_without_star) ] 
                 labels = sorted(labels, cmp=lambda x,y: x.endswith("*") and -1 or 1)
