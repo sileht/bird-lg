@@ -1,7 +1,8 @@
 import sys
 
-activate_this = '/path/to/bird-lg/venv/bin/activate_this.py'
-execfile(activate_this, dict(__file__=activate_this))
+#Uncomment these two lines if you want to make use of virtualenv
+#activate_this = '/path/to/bird-lg/venv/bin/activate_this.py'
+#execfile(activate_this, dict(__file__=activate_this))
 
 sys.path.insert(0, '/path/to/bird-lg')
 
