@@ -38,6 +38,10 @@ bird-lg depends on :
  - python-flask  >= 0.8
  - python-dnspython
  - python-pydot
+ - python-memcache
+ - graphviz
+ - whois
+ - traceroute
 
 Each services can be embedded in any webserver by following regular python-flask configuration.
 
