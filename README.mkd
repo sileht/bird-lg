@@ -61,6 +61,7 @@ Happy users
 * http://lg.as5580.net/
 * https://lg.ldn-fai.net/
 * http://lg.arn-fai.net
+* https://lg.grenode.net/
 * http://lg.dataix.ru/
 * https://lg.blix.com/
 * https://lg.man-da.de/
@@ -78,3 +79,5 @@ Happy users
 * http://lg.as60362.net/
 * http://lg.stuttgart-ix.de/
 * http://www.bet3000.tv/
+* https://lg.franceix.net/
+* https://lg.fullsave.net/
