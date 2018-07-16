@@ -52,6 +52,13 @@ memcache_server = app.config.get("MEMCACHE_SERVER", "127.0.0.1:11211")
 memcache_expiration = int(app.config.get("MEMCACHE_EXPIRATION", "1296000")) # 15 days by default
 mc = memcache.Client([memcache_server])
 
+def reverse(ip):
+    try:
+        name, alias, addresslist = socket.gethostbyaddr(ip)
+        return name
+    except socket.herror:
+        return ""
+
 def get_asn_from_as(n):
     asn_zone = app.config.get("ASN_ZONE", "asn.cymru.com")
     try:
@@ -64,16 +71,31 @@ def get_asn_from_as(n):
 def add_links(text):
     """Browser a string and replace ipv4, ipv6, as number, with a
     whois link """
+    ipv4_re = re.compile('(BGP.next_hop|BGP.originator_id):\s+(\d+\.\d+\.\d+\.\d+).*')
+    ipv6_re = re.compile('(BGP.next_hop|BGP.originator_id):\s+(([0-9a-fA-F]{1,4}:)*:?(?:([0-9a-fA-F]{1,4}))).*')
 
     if type(text) in [str, unicode]:
         text = text.split("\n")
 
     ret_text = []
     for line in text:
+        reverse = None
+        mipv4 =  ipv4_re.match(line.strip())
+        mipv6 =  ipv6_re.match(line.strip())
         # Some heuristic to create link
         if line.strip().startswith("BGP.as_path:") or \
             line.strip().startswith("Neighbor AS:"):
             ret_text.append(re.sub(r'(\d+)', r'<a href="/whois?q=\1" class="whois">\1</a>', line))
+        elif mipv4:
+            ipv4 = mipv4.group(2)
+            reverse = dns(ipv4)
+            line = re.sub(ipv4,r'<a href="/whois?q='+ipv4+'" class="whois">'+ipv4+'</a> '+reverse+'', line)
+            ret_text.append(line)
+        elif mipv6:
+            ipv6 = mipv6.group(2)
+            reverse = dns(ipv6)
+            line = re.sub(ipv6,r'<a href="/whois?q='+ipv6+'" class="whois">'+ipv6+'</a> '+reverse+'', line)
+            ret_text.append(line)
         else:
             line = re.sub(r'([a-zA-Z0-9\-]*\.([a-zA-Z]{2,3}){1,2})(\s|$)', r'<a href="/whois?q=\1" class="whois">\1</a>\3', line)
             line = re.sub(r'AS(\d+)', r'<a href="/whois?q=\1" class="whois">AS\1</a>', line)
@@ -86,6 +108,94 @@ def add_links(text):
             line = re.sub(r'(^|\s+)(([a-f\d]{0,4}:){3,10}[a-f\d]{0,4})', r'\1<a href="/whois?q=\2" class="whois">\2</a>', line, re.I)
             ret_text.append(line)
     return "\n".join(ret_text)
+
+def add_json(text):
+    """Browser a string and replace ipv4, ipv6, as number, with a
+    whois link """
+    ipv4_re = re.compile('^(\d+\.\d+\.\d+\.\d+).*')
+    ipv6_re = re.compile('^(([0-9a-fA-F]{1,4}:)*:?(?:([0-9a-fA-F]{1,4}))).*')
+
+    if type(text) in [str, unicode]:
+        text = text.split("\n")
+
+    q = {}
+    data = []
+    current = {}
+    current['asPath'] = ""
+    current['med'] = 0
+    peer = ""
+    for line in text:
+        reverse = None
+        mipv4 =  ipv4_re.match(line.strip())
+        mipv6 =  ipv6_re.match(line.strip())
+        # Some heuristic to create link
+        m = re.search(r'^((?:\d+\.\d+\.\d+\.\d+)|(?:[0-9a-fA-F]{1,4}:)*:?(?:(?:[0-9a-fA-F]{1,4})?))?\/?(\d+)?\s+via\s+((?:\d+\.\d+\.\d+\.\d+)|(?:[0-9a-fA-F]{1
+,4}:)*:?(?:(?:[0-9a-fA-F]{1,4})?))\son\seth\d+\s\[([a-z0-9_]+)\s(\d+-\d+-\d+)\sfrom\s((?:\d+\.\d+\.\d+\.\d+)|(?:[0-9a-fA-F]{1,4}:)*:?(?:(?:[0-9a-fA-F]{1,4})?)
+)\].*$', line.strip())
+        if m is not None:
+            if peer !=  m.group(4):
+                data.append(current)
+            if m.group(1):
+                current['network'] = m.group(1)
+                current['netmask'] = m.group(2)
+            peer = m.group(4)
+            current['fromPeer'] = m.group(4)
+            current['last'] = m.group(5)
+            current['via'] = m.group(3)
+            current['from'] = m.group(6)
+            if re.match(r"\d+\.\d+\.\d+\.\d+", current['network']):
+                current["ipType"] = "IPv4"
+            elif re.match(r"(?:[0-9a-fA-F]{1,4}:)*:?(?:(?:[0-9a-fA-F]{1,4})?)", current['network']):
+                current["ipType"] = "IPv6"
+        if line.strip().startswith("BGP.as_path:"):
+            m = re.search(r"BGP.as_path: (?P<asPath>\d+\s*)*", line.strip())
+            if m is not None:
+                current['asPath'] = m.group('asPath')
+        elif line.strip().startswith("BGP.origin:"):
+            m = re.search(r"BGP.origin: (?P<origin>\w+\s*)*", line.strip())
+            if m is not None:
+                current['origin'] = m.group('origin')
+            else:
+                current['origin'] = ""
+        elif line.strip().startswith("BGP.next_hop:"):
+            m = re.search(r"BGP.next_hop: (?P<nextHop>((([a-f\d]{0,4}:){3,10}[a-f\d]{0,4})|(\d+\.\d+\.\d+\.\d+))\s*)*", line.strip())
+            if m is not None:
+                current['nextHop'] = {'addr': m.group('nextHop'), "reverse": reverse(m.group('nextHop'))}
+            else:
+                current['nextHop'] = {'addr': "", "reverse": ""}
+        elif line.strip().startswith("BGP.med:"):
+            m = re.search(r"BGP.med: (?P<med>\d+\s*)*", line.strip())
+            if m is not None:
+                current['med'] = int(m.group('med'))
+            else:
+                current['med'] = 0
+        elif line.strip().startswith("BGP.local_pref:"):
+            m = re.search(r"BGP.local_pref: (?P<localPref>\d+\s*)*", line.strip())
+            if m is not None:
+                current['localPref'] = int(m.group('localPref'))
+            else:
+                current['localPref'] = 0
+        elif line.strip().startswith("BGP.originator_id:"):
+            m = re.search(r"BGP.originator_id: (?P<origin>((([a-f\d]{0,4}:){3,10}[a-f\d]{0,4})|(\d+\.\d+\.\d+\.\d+))\s*)*", line.strip())
+            if m is not None:
+                current['originatorId'] = {'addr': m.group('origin'), "reverse": reverse(m.group('origin'))}
+            else:
+                current['originator'] = {'addr': "", "reverse": ""}
+        elif line.strip().startswith("BGP.community:"):
+            current['community'] = []
+            for m in re.findall(r"(\d+,\d+)", line.strip()):
+                if m is not None:
+                        community = m
+                        current['community'].append(community.replace(',',':'))
+                else:
+                        current['community'] = ""
+        elif line.strip().startswith("BGP.cluster_list:"):
+            current['clusterList'] = []
+            for m in re.findall(r"(\d+\.\d+\.\d+\.\d+)", line.strip()):
+                if m is not None:
+                        current['clusterList'].append(m)
+    data.append(current)
+    return {'result':data}
 
 
 def set_session(request_type, hosts, proto, request_args):
@@ -655,6 +765,7 @@ def show_route(request_type, hosts, proto):
         detail = base64.b64encode(json.dumps(detail))
 
     return render_template((bgpmap and 'bgpmap.html' or 'route.html'), detail=detail, command=command, expression=expression, errors=errors)
+
 
 def show_route_api(request_type, hosts, proto):
     expression = get_query()
