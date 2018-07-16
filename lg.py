@@ -363,6 +363,12 @@ def show_route_for_detail(hosts, proto):
 def show_route_for_bgpmap(hosts, proto):
     return show_route("prefix_bgpmap", hosts, proto)
 
+@app.route("/api/<hosts>/<proto>")
+def show_route_for_api(hosts, proto):
+    resp = Response(response=show_route_api("prefix_detail", hosts, proto),
+                    status=200,
+                    mimetype="application/json")
+    return resp
 
 def get_as_name(_as):
     """return a string that contain the as number following by the as name
@@ -649,6 +655,56 @@ def show_route(request_type, hosts, proto):
         detail = base64.b64encode(json.dumps(detail))
 
     return render_template((bgpmap and 'bgpmap.html' or 'route.html'), detail=detail, command=command, expression=expression, errors=errors)
+
+def show_route_api(request_type, hosts, proto):
+    expression = get_query()
+    if not expression:
+        abort(400)
+
+    set_session(request_type, hosts, proto, expression)
+
+    mask = ""
+    if len(expression.split("/")) == 2:
+        expression, mask = (expression.split("/"))
+
+    if not mask and proto == "ipv4":
+        mask = "32"
+    if not mask and proto == "ipv6":
+        mask = "128"
+    if not mask_is_valid(mask):
+        return error_page("mask %s is invalid" % mask)
+    if proto == "ipv6" and not ipv6_is_valid(expression):
+        try:
+            expression = resolve(expression, "AAAA")
+        except:
+            return error_page("%s is unresolvable or invalid for %s" % (expression, proto))
+    if proto == "ipv4" and not ipv4_is_valid(expression):
+        try:
+            expression = resolve(expression, "A")
+        except:
+            return error_page("%s is unresolvable or invalid for %s" % (expression, proto))
+    if mask:
+        expression += "/" + mask
+
+    command = "show route for " + expression + "all"
+
+    detail = {}
+    errors = []
+    for host in hosts.split("+"):
+        ret, res = bird_command(host, proto, command)
+        res = res.split("\n")
+
+        if ret is False:
+            errors.append("%s" % res)
+            continue
+
+        if len(res) <= 1:
+            errors.append("%s: bird command failed with error, %s" % (host, "\n".join(res)))
+            continue
+
+        detail[host] = add_json(res)
+
+    return json.dumps(detail)
 
 
 if __name__ == "__main__":
