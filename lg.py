@@ -471,7 +471,13 @@ def show_bgpmap():
             hop_label = ""
             for _as in asmap:
                 if _as == previous_as:
-                    prepend_as[_as] = prepend_as.get(_as, 1) + 1
+                    if not prepend_as.get(_as, None):
+                        prepend_as[_as] = {}
+                    if not prepend_as[_as].get(host, None):
+                        prepend_as[_as][host] = {}
+                    if not prepend_as[_as][host].get(asmap[0], None):
+                        prepend_as[_as][host][asmap[0]] = 1
+                    prepend_as[_as][host][asmap[0]] += 1
                     continue
 
                 if not hop:
@@ -508,7 +514,8 @@ def show_bgpmap():
         node.set_shape("box")
 
     for _as in prepend_as:
-        graph.add_edge(pydot.Edge(*(_as, _as), label=" %dx" % prepend_as[_as], color="grey", fontcolor="grey"))
+        for n in set([ n for h, d in prepend_as[_as].iteritems() for p, n in d.iteritems() ]):
+            graph.add_edge(pydot.Edge(*(_as, _as), label=" %dx" % n, color="grey", fontcolor="grey"))
 
     fmt = request.args.get('fmt', 'png')
     #response = Response("<pre>" + graph.create_dot() + "</pre>")
