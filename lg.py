@@ -223,8 +223,6 @@ def whois():
 
 
 SUMMARY_UNWANTED_PROTOS = ["Kernel", "Static", "Device"]
-SUMMARY_RE_MATCH = r"(?P<name>[\w_]+)\s+(?P<proto>\w+)\s+(?P<table>\w+)\s+(?P<state>\w+)\s+(?P<since>((|\d\d\d\d-\d\d-\d\d\s)|(\d\d:)\d\d:\d\d|\w\w\w\d\d))($|\s+(?P<info>.*))"
-
 
 @app.route("/summary/<hosts>")
 @app.route("/summary/<hosts>/<proto>")
@@ -251,9 +249,16 @@ def summary(hosts, proto="ipv4"):
         for line in res[1:]:
             line = line.strip()
             if line and (line.split() + [""])[1] not in SUMMARY_UNWANTED_PROTOS:
-                m = re.match(SUMMARY_RE_MATCH, line)
-                if m:
-                    data.append(m.groupdict())
+                split = line.split()
+                if len(split) >= 5:
+                    props = dict()
+                    props["name"] = split[0]
+                    props["proto"] = split[1]
+                    props["table"] = split[2]
+                    props["state"] = split[3]
+                    props["since"] = split[4]
+                    props["info"] = ' '.join(split[5:]) if len(split) > 5 else ""
+                    data.append(props)
                 else:
                     app.logger.warning("couldn't parse: %s", line)
 
