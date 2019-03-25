@@ -538,21 +538,29 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
     path = None
     paths = []
     net_dest = None
+    peer_protocol_name = None
     for line in text:
         line = line.strip()
 
-        expr = re.search(r'(.*)via\s+([0-9a-fA-F:\.]+)\s+on.*\[(\w+)\s+', line)
+        expr = re.search(r'(.*)unicast\s+\[(\w+)\s+', line)
         if expr:
+            if expr.group(1).strip():
+                net_dest = expr.group(1).strip()
+            peer_protocol_name = expr.group(2).strip()
+
+        expr2 = re.search(r'(.*)via\s+([0-9a-fA-F:\.]+)\s+on\s+\w+(\s+\[(\w+)\s+)?', line)
+        if expr2:
             if path:
                 path.append(net_dest)
                 paths.append(path)
                 path = None
 
-            if expr.group(1).strip():
-                net_dest = expr.group(1).strip()
+            if expr2.group(1).strip():
+                net_dest = expr2.group(1).strip()
 
-            peer_ip = expr.group(2).strip()
-            peer_protocol_name = expr.group(3).strip()
+            peer_ip = expr2.group(2).strip()
+            if expr2.group(4):
+                peer_protocol_name = expr2.group(4).strip()
             # Check if via line is a internal route
             for rt_host, rt_ips in app.config["ROUTER_IP"].iteritems():
                 # Special case for internal routing
@@ -564,15 +572,18 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
                 path = [ peer_protocol_name ]
 #                path = ["%s\r%s" % (peer_protocol_name, get_as_name(get_as_number_from_protocol_name(host, proto, peer_protocol_name)))]
         
-        expr2 = re.search(r'(.*)unreachable\s+\[(\w+)\s+', line)
-        if expr2:
+        expr3 = re.search(r'(.*)unreachable\s+\[(\w+)\s+', line)
+        if expr3:
             if path:
                 path.append(net_dest)
                 paths.append(path)
                 path = None
 
-            if expr2.group(1).strip():
-                net_dest = expr2.group(1).strip()
+            if path is None:
+                path = [ expr3.group(2).strip() ]
+
+            if expr3.group(1).strip():
+                net_dest = expr3.group(1).strip()
 
         if line.startswith("BGP.as_path:"):
             path.extend(line.replace("BGP.as_path:", "").strip().split(" "))
