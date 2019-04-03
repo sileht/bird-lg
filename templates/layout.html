@@ -84,7 +84,7 @@
 							<li class="nav-header">Request history</li>
 							{% for hosts, proto, request_type, request_args in session.history %}
 							<li{% if loop.first %} class="active"{% endif %}>
-							<a href="/{{ [request_type, hosts, proto]|join("/") }}{% if request_args %}?q={{request_args}}{% endif %}">
+							<a href="/{{ [request_type, hosts, proto]|join("/") }}{% if request_args %}?q={{request_args|urlencode}}{% endif %}">
 								{{hosts}}/{{proto}}: {{ commands_dict[request_type]|replace("...", request_args) }}
 							</a>
 							</li>
