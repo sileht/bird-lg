@@ -76,7 +76,7 @@ def add_links(text):
             ret_text.append(re.sub(r'(\d+)', r'<a href="/whois?q=\1" class="whois">\1</a>', line))
         else:
             line = re.sub(r'([a-zA-Z0-9\-]*\.([a-zA-Z]{2,3}){1,2})(\s|$)', r'<a href="/whois?q=\1" class="whois">\1</a>\3', line)
-            line = re.sub(r'AS(\d+)', r'<a href="/whois?q=\1" class="whois">AS\1</a>', line)
+            line = re.sub(r'(?<=\[)AS(\d+)', r'<a href="/whois?q=\1" class="whois">AS\1</a>', line)
             line = re.sub(r'(\d+\.\d+\.\d+\.\d+)', r'<a href="/whois?q=\1" class="whois">\1</a>', line)
             if len(request.path) >= 2:
                 hosts = "/".join(request.path.split("/")[2:])
