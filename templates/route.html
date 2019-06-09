@@ -3,7 +3,7 @@
 {% for host in detail %}
 <h3>
     {{host}}: {{command}}
-    <small><a class="pull-right" href="/{{session.request_type|replace("_detail","")}}_bgpmap/{{session.hosts}}/{{session.proto}}?q={{session.request_args}}">View the BGP map</a></small>
+    <small><a class="pull-right" href="/{{session.request_type|replace("_detail","")}}_bgpmap/{{session.hosts}}/{{session.proto}}?q={{session.request_args|urlencode}}">View the BGP map</a></small>
 </h3>
 {% if session.request_args != expression|replace("/32","")|replace("/128","") %}
 <i>DNS: <a href="/whois/{{session.request_args}}" class="whois">{{session.request_args}}</a> => <a href="/whois/{{ expression|replace("/32","")|replace("/128","") }}" class="whois">{{expression|replace("/32","")|replace("/128","")}}</a></i><br />
