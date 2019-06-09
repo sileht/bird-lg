@@ -491,7 +491,10 @@ def show_bgpmap():
                         hop_label = ""
 
                 
-                add_node(_as, fillcolor=(first and "#F5A9A9" or "white"))
+                if _as == asmap[-1]:
+                    add_node(_as, fillcolor="#F5A9A9", shape="box", )
+                else:
+                    add_node(_as, fillcolor=(first and "#F5A9A9" or "white"), )
                 if hop_label:
                     edge = add_edge(nodes[previous_as], nodes[_as], label=hop_label, fontsize="7")
                 else:
@@ -499,19 +502,15 @@ def show_bgpmap():
 
                 hop_label = ""
 
-                if first:
+                if first or _as == asmap[-1]:
                     edge.set_style("bold")
                     edge.set_color("red")
-                elif edge.get_color() != "red":
+                elif edge.get_style() != "bold":
                     edge.set_style("dashed")
                     edge.set_color(color)
 
                 previous_as = _as
             first = False
-
-    if previous_as:
-        node = add_node(previous_as)
-        node.set_shape("box")
 
     for _as in prepend_as:
         graph.add_edge(pydot.Edge(*(_as, _as), label=" %dx" % prepend_as[_as], color="grey", fontcolor="grey"))
