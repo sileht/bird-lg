@@ -14,7 +14,7 @@ function reload(){
 	loc = "/" + request_type + "/" + hosts + "/" + proto;
 	if (request_type != "summary" ){
 		if( request_args != undefined && request_args != ""){
-			loc = loc + "?q=" + escape(request_args);
+			loc = loc + "?q=" + encodeURIComponent(request_args);
 			change_url(loc)
 		} 
 	} else {
