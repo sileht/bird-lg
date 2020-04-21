@@ -144,16 +144,24 @@ def bird_proxy(host, proto, service, query):
         return False, 'Host "%s" invalid' % host
     elif not path:
         return False, 'Proto "%s" invalid' % proto
-    else:
-        url = "http://%s.%s:%d/%s?q=%s" % (host, app.config["DOMAIN"], port, path, quote(query))
-        try:
-            f = urlopen(url)
-            resultat = f.read()
-            status = True                # retreive remote status
-        except IOError:
-            resultat = "Failed retreive url: %s" % url
-            status = False
-        return status, resultat
+    
+    url = "http://%s" % (host)
+    if "DOMAIN" in app.config:
+        url = "%s.%s" % (url, app.config["DOMAIN"])
+    url = "%s:%d/%s?" % (url, port, path)
+    if "SECURITY_TOKEN" in app.config:
+        url = "%stoken=%s&" % (url, app.config["SECURITY_TOKEN"])
+    url = "%sq=%s" % (url, quote(query))
+
+    try:
+        f = urlopen(url)
+        resultat = f.read()
+        status = True                # retreive remote status
+    except IOError:
+        resultat = "Failed retreive url: %s" % url
+        status = False
+    
+    return status, resultat
 
 
 @app.context_processor
@@ -455,7 +463,10 @@ def show_bgpmap():
         return edges[edge_tuple]
 
     for host, asmaps in data.iteritems():
-        add_node(host, label= "%s\r%s" % (host.upper(), app.config["DOMAIN"].upper()), shape="box", fillcolor="#F5A9A9")
+        if "DOMAIN" in app.config:
+            add_node(host, label= "%s\r%s" % (host.upper(), app.config["DOMAIN"].upper()), shape="box", fillcolor="#F5A9A9")
+        else:
+            add_node(host, label= "%s" % (host.upper()), shape="box", fillcolor="#F5A9A9")
 
         as_number = app.config["AS_NUMBER"].get(host, None)
         if as_number:
