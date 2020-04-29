@@ -58,7 +58,7 @@ $(function(){
 			link = $(this).attr('href');
 			$.getJSON(link, function(data) {
 				$(".modal h3").html(data.title);
-			        $(".modal .modal-body > p").html(data.output);
+			        $(".modal .modal-body > p").css("white-space", "pre-line").text(data.output);
 				$(".modal").modal('show');
 			});
 		});
