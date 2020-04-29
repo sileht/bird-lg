@@ -218,7 +218,7 @@ def whois():
         if m:
             query = query.groupdict()["domain"]
 
-    output = whois_command(query).replace("\n", "<br>")
+    output = whois_command(query)
     return jsonify(output=output, title=query)
 
 
