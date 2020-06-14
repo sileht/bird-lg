@@ -38,7 +38,7 @@ from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve, save_c
 
 
 import pydot
-from flask import Flask, render_template, jsonify, redirect, session, request, abort, Response, Markup
+from flask import Flask, render_template, render_template_string, jsonify, redirect, session, request, abort, Response, Markup
 parser = argparse.ArgumentParser()
 parser.add_argument('-c', dest='config_file', help='path to config file', default='lg.cfg')
 args = parser.parse_args()
@@ -188,6 +188,17 @@ def inject_all_host():
 
 @app.route("/")
 def hello():
+    if app.config.get("DEFAULT_TEMPLATE", False):
+        # initializes session with first command of commands_dict, first host and ipv4 for rendering layout.html.
+        first_command = next(iter(inject_commands()['commands_dict']))
+        set_session(first_command, "+".join(app.config["PROXY"].keys()), "ipv4", "")
+
+        # usage of open + render_template_string instead of render_template allows
+        # file location outside of template directory.
+        with open(app.config.get("DEFAULT_TEMPLATE"), 'r') as filehandle:
+            filecontent = filehandle.read()
+        return render_template_string(filecontent)
+
     return redirect("/summary/%s/ipv4" % "+".join(app.config["PROXY"].keys()))
 
 
