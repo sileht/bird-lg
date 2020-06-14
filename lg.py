@@ -31,6 +31,7 @@ from urllib2 import urlopen
 from urllib import quote, unquote
 import json
 import random
+import argparse
 
 from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve, save_cache_pickle, load_cache_pickle, unescape
 #from xml.sax.saxutils import escape
@@ -38,9 +39,12 @@ from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve, save_c
 
 import pydot
 from flask import Flask, render_template, jsonify, redirect, session, request, abort, Response, Markup
+parser = argparse.ArgumentParser()
+parser.add_argument('-c', dest='config_file', help='path to config file', default='lg.cfg')
+args = parser.parse_args()
 
 app = Flask(__name__)
-app.config.from_pyfile('lg.cfg')
+app.config.from_pyfile(args.config_file)
 app.secret_key = app.config["SESSION_KEY"]
 app.debug = app.config["DEBUG"]
 
