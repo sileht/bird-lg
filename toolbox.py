@@ -29,16 +29,16 @@ resolv.timeout = 0.5
 resolv.lifetime = 1
 
 def resolve(n, q):
-	return str(resolv.query(n,q)[0])
+    return str(resolv.query(n,q)[0])
 
 def mask_is_valid(n):
-	if not n: 
-		return True
-	try:
-		mask = int(n)
-		return ( mask >= 1 and mask <= 128)
-	except:
-		return False
+    if not n:
+        return True
+    try:
+        mask = int(n)
+        return ( mask >= 1 and mask <= 128)
+    except:
+        return False
 
 def ipv4_is_valid(n):
     try:
@@ -55,21 +55,21 @@ def ipv6_is_valid(n):
         return False
 
 def save_cache_pickle(filename, data):
-	output = open(filename, 'wb')
-	pickle.dump(data, output)
-	output.close()
+    output = open(filename, 'wb')
+    pickle.dump(data, output)
+    output.close()
 
 def load_cache_pickle(filename, default = None):
-	try:
-		pkl_file = open(filename, 'rb')
-	except IOError:
-		return default
-	try:
-		data = pickle.load(pkl_file)
-	except:
-		data = default
-	pkl_file.close()
-	return data
+    try:
+        pkl_file = open(filename, 'rb')
+    except IOError:
+        return default
+    try:
+        data = pickle.load(pkl_file)
+    except:
+        data = default
+    pkl_file.close()
+    return data
 
 def unescape(s):
     want_unicode = False
