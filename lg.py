@@ -162,7 +162,8 @@ def bird_proxy(host, proto, service, query):
         resultat = f.read()
         status = True                # retreive remote status
     except IOError:
-        resultat = "Failed retreive url: %s" % url
+        resultat = "Failed to retrieve URL for host %s" % host
+        app.logger.warning("Failed to retrieve URL for host %s: %s", host, url)
         status = False
 
     return status, resultat
