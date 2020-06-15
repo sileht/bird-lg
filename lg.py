@@ -153,7 +153,8 @@ def bird_proxy(host, proto, service, query):
     if "DOMAIN" in app.config:
         url = "%s.%s" % (url, app.config["DOMAIN"])
     url = "%s:%d/%s?" % (url, port, path)
-
+    if "SHARED_SECRET" in app.config:
+        url = "%ssecret=%s&" % (url, app.config["SHARED_SECRET"])
     url = "%sq=%s" % (url, quote(query))
 
     try:
