@@ -54,14 +54,19 @@ def access_log_after(response, *args, **kwargs):
     app.logger.info("[%s] reponse %s, %s", request.remote_addr,  request.url, response.status_code)
     return response
 
-def check_accesslist():
-    if  app.config["ACCESS_LIST"] and request.remote_addr not in app.config["ACCESS_LIST"]:
+def check_security():
+    if app.config["ACCESS_LIST"] and request.remote_addr not in app.config["ACCESS_LIST"]:
+        app.logger.info("Your remote address is not valid")
+        abort(401)
+
+    if app.config.get('SHARED_SECRET') and request.args.get("secret") != app.config["SHARED_SECRET"]:
+        app.logger.info("Your shared secret is not valid")
         abort(401)
 
 @app.route("/traceroute")
 @app.route("/traceroute6")
 def traceroute():
-    check_accesslist()
+    check_security()
     
     if sys.platform.startswith('freebsd') or sys.platform.startswith('netbsd') or sys.platform.startswith('openbsd'):
         traceroute4 = [ 'traceroute' ]
@@ -100,7 +105,7 @@ def traceroute():
 @app.route("/bird")
 @app.route("/bird6")
 def bird():
-    check_accesslist()
+    check_security()
 
     if request.path == "/bird": b = BirdSocket(file=app.config.get("BIRD_SOCKET"))
     elif request.path == "/bird6": b = BirdSocket(file=app.config.get("BIRD6_SOCKET"))
