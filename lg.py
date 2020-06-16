@@ -568,7 +568,7 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
                 net_dest = expr.group(1).strip()
             peer_protocol_name = expr.group(2).strip()
 
-        expr2 = re.search(r'(.*)via\s+([0-9a-fA-F:\.]+)\s+on\s+\w+(\s+\[(\w+)\s+)?', line)
+        expr2 = re.search(r'(.*)via\s+([0-9a-fA-F:\.]+)\s+on\s+\S+(\s+\[(\w+)\s+)?', line)
         if expr2:
             if path:
                 path.append(net_dest)
