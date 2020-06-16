@@ -558,7 +558,7 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
     path = None
     paths = []
     net_dest = None
-    peer_protocol_name = None
+    peer_protocol_name = ""
     for line in text:
         line = line.strip()
 
