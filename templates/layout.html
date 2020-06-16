@@ -24,7 +24,7 @@
 							<li class="navbar-text">Nodes:&nbsp;&nbsp;</li>
 							<li class="hosts"><a id="{{all_hosts}}" href="#">all</a></li>
 
-							{% for host in config.PROXY %}
+							{% for host in config.HOSTS %}
 							<li class="hosts"><a id="{{host}}" href="#">{{host}}</a></li>
 							{% endfor %}
 
