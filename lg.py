@@ -22,7 +22,6 @@
 
 import base64
 from datetime import datetime
-import memcache
 import subprocess
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -52,9 +51,6 @@ file_handler = TimedRotatingFileHandler(filename=app.config["LOG_FILE"], when="m
 file_handler.setLevel(getattr(logging, app.config["LOG_LEVEL"].upper()))
 app.logger.addHandler(file_handler)
 
-memcache_server = app.config.get("MEMCACHE_SERVER", "127.0.0.1:11211")
-memcache_expiration = int(app.config.get("MEMCACHE_EXPIRATION", "1296000")) # 15 days by default
-mc = memcache.Client([memcache_server])
 
 def get_asn_from_as(n):
     asn_zone = app.config.get("ASN_ZONE", "asn.cymru.com")
@@ -383,10 +379,7 @@ def show_route_for_bgpmap(hosts, proto):
 
 
 def get_as_name(_as):
-    """return a string that contain the as number following by the as name
-
-    It's the use whois database informations
-    # Warning, the server can be blacklisted from ripe is too many requests are done
+    """Returns a string that contain the as number following by the as name
     """
     if not _as:
         return "AS?????"
@@ -394,12 +387,7 @@ def get_as_name(_as):
     if not _as.isdigit():
         return _as.strip()
 
-    name = mc.get(str('lg_%s' % _as))
-    if not name:
-        app.logger.info("asn for as %s not found in memcache", _as)
-        name = get_asn_from_as(_as)[-1].replace(" ","\r",1)
-        if name:
-            mc.set(str("lg_%s" % _as), str(name), memcache_expiration)
+    name = get_asn_from_as(_as)[-1].replace(" ", "\r", 1)
     return "AS%s | %s" % (_as, name)
 
 
