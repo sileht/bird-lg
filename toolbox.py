@@ -24,9 +24,11 @@ import socket
 import pickle
 import xml.parsers.expat
 
+dns_cache = resolver.LRUCache(max_size=10000)
 resolv = resolver.Resolver()
 resolv.timeout = 0.5
 resolv.lifetime = 1
+resolv.cache = dns_cache
 
 def resolve(n, q):
     return str(resolv.query(n,q)[0])
