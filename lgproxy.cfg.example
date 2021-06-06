@@ -1,3 +1,5 @@
+# Configuration file example for lgproxy.py
+# Adapt and copy to lgproxy.cfg
 
 DEBUG=False
 
@@ -17,8 +19,9 @@ ACCESS_LIST = ["91.224.149.206", "178.33.111.110", "2a01:6600:8081:ce00::1"]
 # Empty string or unset = no shared secret is required to run queries.
 SHARED_SECRET="ThisTokenIsNotSecret"
 
-IPV4_SOURCE=""
-IPV6_SOURCE=""
+# Used as source address when running traceroute (optional)
+IPV4_SOURCE="198.51.100.42"
+IPV6_SOURCE="2001:db8:42::1"
 
 BIRD_SOCKET="/var/run/bird/bird.ctl"
 BIRD6_SOCKET="/var/run/bird/bird6.ctl"
