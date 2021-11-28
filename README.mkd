@@ -96,7 +96,8 @@ Happy users
 * https://lg.man-da.de/
 * http://route-server.belwue.net/
 * https://lg.exn.uk/
-* http://lg.meerfarbig.net/
+* https://meerblick.io/
+* https://lg.as49697.net/
 * http://lg.netnation.com/
 * http://lg.edxnetwork.eu/
 * https://lg.hivane.net/
@@ -112,5 +113,4 @@ Happy users
 * https://lg.fullsave.net/
 * http://lg.catnix.net/
 * https://lg.worldstream.nl/
-* https://route-server.netshelter.de/
 * https://lg.angolacables.co.ao/
