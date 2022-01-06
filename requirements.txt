@@ -1,0 +1,12 @@
+click==6.7
+dnspython==1.15.0
+Flask==0.12.2
+itsdangerous==0.24
+Jinja2==2.9.6
+MarkupSafe==1.0
+pydot==1.2.3
+pymemcache==1.4.3
+pyparsing==2.2.0
+python-memcached==1.58
+six==1.11.0
+Werkzeug==0.12.2
