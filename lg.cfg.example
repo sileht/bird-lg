@@ -1,9 +1,18 @@
+# Configuration file example for lg.py
+# Adapt and copy to lg.cfg
 
+WEBSITE_TITLE="Bird-LG / Looking Glass"
 DEBUG = False
 LOG_FILE="/var/log/lg.log"
 LOG_LEVEL="WARNING"
+# Keep log history indefinitely by default.
+LOG_NUM_DAYS=0
 
 DOMAIN = "tetaneutral.net"
+
+# Used to optionally restrict access to lgproxy based on a shared secret.
+# Empty string or unset = no shared secret is used to run queries on lgproxies.
+SHARED_SECRET="ThisTokenIsNotSecret"
 
 BIND_IP = "0.0.0.0"
 BIND_PORT = 5000
@@ -29,6 +38,7 @@ AS_NUMBER = {
 # DNS zone to query for ASN -> name mapping
 ASN_ZONE = "asn.cymru.com"
 
+# Used for secure session storage, change this
 SESSION_KEY = '\xd77\xf9\xfa\xc2\xb5\xcd\x85)`+H\x9d\xeeW\\%\xbe/\xbaT\x89\xe8\xa7'
 
 # specifies an alternative start page template for the "/" route.

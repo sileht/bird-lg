@@ -1,6 +1,9 @@
 BIRD-LG
 =======
 
+Overview
+--------
+
 This is a looking glass for the Internet Routing Daemon "Bird".
 
 Software is split in two parts:
@@ -8,7 +11,8 @@ Software is split in two parts:
  - lgproxy.py:
 
    It must be installed and started on all bird nodes. It act as a proxy to make traceroute and bird query on the node.
-   Access restriction to this web service can be done in file "lgproxy.cfg" (only IP address based restriction for now).
+   Access restriction to this web service can be done in file "lgproxy.cfg". Two access restriction methods can be configured:
+   based on source IP address or based on a shared secret. Both methods can be used at the same time.
 
  - lg.py:
 
@@ -33,17 +37,42 @@ Software is split in two parts:
 ```
 
 
-bird-lg depends on :
+Installation
+------------
+
+The web service (lg.py) depends on:
 
  - python-flask  >= 0.8
  - python-dnspython
  - python-pydot
- - python-memcache
  - graphviz
  - whois
- - traceroute
 
-Each services can be embedded in any webserver by following regular python-flask configuration.
+The proxy running on routers (lgproxy.py) depends on:
+
+ - python-flask  >= 0.8
+ - traceroute
+ - ping
+
+Each service can be embedded in any webserver by following regular python-flask configuration.
+It is also possible to run the services directly with python for developping / testing:
+
+    python2 lg.py
+    python2 lgproxy.py
+
+Systemd unit files are provided in the `init/` subdirectory.
+
+
+Configuration
+-------------
+
+On your routers, copy `lgproxy.cfg.example` to `lgproxy.cfg` and edit the values.
+
+On the web host, copy `lg.cfg.example` to `lg.cfg` and edit the values.
+
+
+License
+-------
 
 Source code is under GPL 3.0, powered by Flask, jQuery and Bootstrap.
 
@@ -67,7 +96,8 @@ Happy users
 * https://lg.man-da.de/
 * http://route-server.belwue.net/
 * https://lg.exn.uk/
-* http://lg.meerfarbig.net/
+* https://meerblick.io/
+* https://lg.as49697.net/
 * http://lg.netnation.com/
 * http://lg.edxnetwork.eu/
 * https://lg.hivane.net/
@@ -83,4 +113,4 @@ Happy users
 * https://lg.fullsave.net/
 * http://lg.catnix.net/
 * https://lg.worldstream.nl/
-* https://route-server.netshelter.de/
+* https://lg.angolacables.co.ao/

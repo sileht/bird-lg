@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
-	<title>{{config.DOMAIN|capitalize}} looking glass</title>
 	<head>
+		<title>{{config.WEBSITE_TITLE|default("Bird-LG / Looking Glass") }}</title>
 		<meta charset="UTF-8">
 		<link rel=stylesheet type=text/css href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
 		<link rel=stylesheet type=text/css href="{{ url_for('static', filename='css/bootstrap-responsive.min.css') }}">
@@ -18,7 +18,7 @@
 						<span class="icon-bar"></span>
 						<span class="icon-bar"></span>
 					</a>
-					<a class="brand" href="/">{{config.DOMAIN|capitalize}} / Looking Glass</a>
+					<a class="brand" href="/">{{config.WEBSITE_TITLE|default("Bird-LG / Looking Glass") }}</a>
 					<div class="navbar nav-collapse">
 						<ul class="nav nav-pills">
 							<li class="navbar-text">Nodes:&nbsp;&nbsp;</li>
@@ -120,7 +120,7 @@
         <script type="text/javascript" src="{{url_for('static', filename='js/DT_bootstrap.js') }}"></script>
 		<script type="text/javascript">
 			request_type = "{{session.request_type}}";
-			request_args = "{{session.request_args|safe}}";
+			request_args = "{{session.request_args}}";
 			hosts = "{{session.hosts}}";
 			proto = "{{session.proto}}";
 			history_query = {{session.history|tojson|safe}};

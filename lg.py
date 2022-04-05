@@ -22,7 +22,6 @@
 
 import base64
 from datetime import datetime
-import memcache
 import subprocess
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -43,18 +42,16 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-c', dest='config_file', help='path to config file', default='lg.cfg')
 args = parser.parse_args()
 
+
 app = Flask(__name__)
 app.config.from_pyfile(args.config_file)
 app.secret_key = app.config["SESSION_KEY"]
 app.debug = app.config["DEBUG"]
 
-file_handler = TimedRotatingFileHandler(filename=app.config["LOG_FILE"], when="midnight")
+file_handler = TimedRotatingFileHandler(filename=app.config["LOG_FILE"], when="midnight", backupCount=app.config.get("LOG_NUM_DAYS", 0))
 file_handler.setLevel(getattr(logging, app.config["LOG_LEVEL"].upper()))
 app.logger.addHandler(file_handler)
 
-memcache_server = app.config.get("MEMCACHE_SERVER", "127.0.0.1:11211")
-memcache_expiration = int(app.config.get("MEMCACHE_EXPIRATION", "1296000")) # 15 days by default
-mc = memcache.Client([memcache_server])
 
 def get_asn_from_as(n):
     asn_zone = app.config.get("ASN_ZONE", "asn.cymru.com")
@@ -148,16 +145,25 @@ def bird_proxy(host, proto, service, query):
         return False, 'Host "%s" invalid' % host
     elif not path:
         return False, 'Proto "%s" invalid' % proto
-    else:
-        url = "http://%s.%s:%d/%s?q=%s" % (host, app.config["DOMAIN"], port, path, quote(query))
-        try:
-            f = urlopen(url)
-            resultat = f.read()
-            status = True                # retreive remote status
-        except IOError:
-            resultat = "Failed retreive url: %s" % url
-            status = False
-        return status, resultat
+
+    url = "http://%s" % (host)
+    if "DOMAIN" in app.config:
+        url = "%s.%s" % (url, app.config["DOMAIN"])
+    url = "%s:%d/%s?" % (url, port, path)
+    if "SHARED_SECRET" in app.config:
+        url = "%ssecret=%s&" % (url, app.config["SHARED_SECRET"])
+    url = "%sq=%s" % (url, quote(query))
+
+    try:
+        f = urlopen(url)
+        resultat = f.read()
+        status = True                # retreive remote status
+    except IOError:
+        resultat = "Failed to retrieve URL for host %s" % host
+        app.logger.warning("Failed to retrieve URL for host %s: %s", host, url)
+        status = False
+
+    return status, resultat
 
 
 @app.context_processor
@@ -175,6 +181,8 @@ def inject_commands():
             ("adv", "show route ..."),
             ("adv_bgpmap", "show route ... (bgpmap)"),
         ]
+
+    commands =  [i for i in commands if i[0] not in app.config.get("BLACKLIST_COMMANDS", [])]
     commands_dict = {}
     for id, text in commands:
         commands_dict[id] = text
@@ -242,6 +250,8 @@ SUMMARY_UNWANTED_PROTOS = ["Kernel", "Static", "Device", "Direct"]
 @app.route("/summary/<hosts>")
 @app.route("/summary/<hosts>/<proto>")
 def summary(hosts, proto="ipv4"):
+    if 'summary' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
 
     set_session("summary", hosts, proto, "")
     command = "show protocols"
@@ -284,6 +294,9 @@ def summary(hosts, proto="ipv4"):
 
 @app.route("/detail/<hosts>/<proto>")
 def detail(hosts, proto):
+    if 'detail' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     name = get_query()
 
     if not name:
@@ -313,6 +326,9 @@ def detail(hosts, proto):
 
 @app.route("/traceroute/<hosts>/<proto>")
 def traceroute(hosts, proto):
+    if 'traceroute' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     q = get_query()
 
     if not q:
@@ -346,49 +362,70 @@ def traceroute(hosts, proto):
 
 @app.route("/adv/<hosts>/<proto>")
 def show_route_filter(hosts, proto):
+    if 'adv' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     return show_route("adv", hosts, proto)
 
 
 @app.route("/adv_bgpmap/<hosts>/<proto>")
 def show_route_filter_bgpmap(hosts, proto):
+    if 'adv_bgpmap' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     return show_route("adv_bgpmap", hosts, proto)
 
 
 @app.route("/where/<hosts>/<proto>")
 def show_route_where(hosts, proto):
+    if 'where' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     return show_route("where", hosts, proto)
 
 
 @app.route("/where_detail/<hosts>/<proto>")
 def show_route_where_detail(hosts, proto):
+    if 'where_detail' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     return show_route("where_detail", hosts, proto)
 
 
 @app.route("/where_bgpmap/<hosts>/<proto>")
 def show_route_where_bgpmap(hosts, proto):
+    if 'where_bgpmap' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     return show_route("where_bgpmap", hosts, proto)
 
 
 @app.route("/prefix/<hosts>/<proto>")
 def show_route_for(hosts, proto):
+    if 'prefix' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     return show_route("prefix", hosts, proto)
 
 
 @app.route("/prefix_detail/<hosts>/<proto>")
 def show_route_for_detail(hosts, proto):
+    if 'prefix_detail' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     return show_route("prefix_detail", hosts, proto)
 
 
 @app.route("/prefix_bgpmap/<hosts>/<proto>")
 def show_route_for_bgpmap(hosts, proto):
+    if 'prefix_bgpmap' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     return show_route("prefix_bgpmap", hosts, proto)
 
 
 def get_as_name(_as):
-    """return a string that contain the as number following by the as name
-
-    It's the use whois database informations
-    # Warning, the server can be blacklisted from ripe is too many requests are done
+    """Returns a string that contain the as number following by the as name
     """
     if not _as:
         return "AS?????"
@@ -396,12 +433,7 @@ def get_as_name(_as):
     if not _as.isdigit():
         return _as.strip()
 
-    name = mc.get(str('lg_%s' % _as))
-    if not name:
-        app.logger.info("asn for as %s not found in memcache", _as)
-        name = get_asn_from_as(_as)[-1].replace(" ","\r",1)
-        if name:
-            mc.set(str("lg_%s" % _as), str(name), memcache_expiration)
+    name = get_asn_from_as(_as)[-1].replace(" ", "\r", 1)
     return "AS%s | %s" % (_as, name)
 
 
@@ -458,19 +490,21 @@ def show_bgpmap():
 
             label_without_star = kwargs["label"].replace("*", "")
             if e.get_label() is not None:
-                labels = e.get_label().split("\r") 
+                labels = e.get_label().split("\r")
             else:
                 return edges[edge_tuple]
             if "%s*" % label_without_star not in labels:
-                labels = [ kwargs["label"] ]  + [ l for l in labels if not l.startswith(label_without_star) ] 
+                labels = [ kwargs["label"] ]  + [ l for l in labels if not l.startswith(label_without_star) ]
                 labels = sorted(labels, cmp=lambda x,y: x.endswith("*") and -1 or 1)
-                
                 label = escape("\r".join(labels))
                 e.set_label(label)
         return edges[edge_tuple]
 
     for host, asmaps in data.iteritems():
-        add_node(host, label= "%s\r%s" % (host.upper(), app.config["DOMAIN"].upper()), shape="box", fillcolor="#F5A9A9")
+        if "DOMAIN" in app.config:
+            add_node(host, label= "%s\r%s" % (host.upper(), app.config["DOMAIN"].upper()), shape="box", fillcolor="#F5A9A9")
+        else:
+            add_node(host, label= "%s" % (host.upper()), shape="box", fillcolor="#F5A9A9")
 
         as_number = app.config["AS_NUMBER"].get(host, None)
         if as_number:
@@ -478,7 +512,7 @@ def show_bgpmap():
             edge = add_edge(as_number, nodes[host])
             edge.set_color("red")
             edge.set_style("bold")
-    
+
     #colors = [ "#009e23", "#1a6ec1" , "#d05701", "#6f879f", "#939a0e", "#0e9a93", "#9a0e85", "#56d8e1" ]
     previous_as = None
     hosts = data.keys()
@@ -504,14 +538,13 @@ def show_bgpmap():
                 if not hop:
                     hop = True
                     if _as not in hosts:
-                        hop_label = _as 
+                        hop_label = _as
                         if first:
                             hop_label = hop_label + "*"
                         continue
                     else:
                         hop_label = ""
 
-                
                 if _as == asmap[-1]:
                     add_node(_as, fillcolor="#F5A9A9", shape="box", )
                 else:
@@ -559,7 +592,7 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
     path = None
     paths = []
     net_dest = None
-    peer_protocol_name = None
+    peer_protocol_name = ""
     for line in text:
         line = line.strip()
 
@@ -569,7 +602,7 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
                 net_dest = expr.group(1).strip()
             peer_protocol_name = expr.group(2).strip()
 
-        expr2 = re.search(r'(.*)via\s+([0-9a-fA-F:\.]+)\s+on\s+\w+(\s+\[(\w+)\s+)?', line)
+        expr2 = re.search(r'(.*)via\s+([0-9a-fA-F:\.]+)\s+on\s+\S+(\s+\[(\w+)\s+)?', line)
         if expr2:
             if path:
                 path.append(net_dest)
@@ -592,7 +625,7 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
                 # ugly hack for good printing
                 path = [ peer_protocol_name ]
 #                path = ["%s\r%s" % (peer_protocol_name, get_as_name(get_as_number_from_protocol_name(host, proto, peer_protocol_name)))]
-        
+
         expr3 = re.search(r'(.*)unreachable\s+\[(\w+)\s+', line)
         if expr3:
             if path:
@@ -612,7 +645,7 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
                 path.extend(ASes)
             else:
                 path = ASes
-    
+
     if path:
         path.append(net_dest)
         paths.append(path)
