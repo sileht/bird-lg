@@ -37,10 +37,11 @@ from toolbox import mask_is_valid, ipv6_is_valid, ipv4_is_valid, resolve, save_c
 
 
 import pydot
-from flask import Flask, render_template, jsonify, redirect, session, request, abort, Response, Markup
+from flask import Flask, render_template, render_template_string, jsonify, redirect, session, request, abort, Response, Markup
 parser = argparse.ArgumentParser()
 parser.add_argument('-c', dest='config_file', help='path to config file', default='lg.cfg')
 args = parser.parse_args()
+
 
 app = Flask(__name__)
 app.config.from_pyfile(args.config_file)
@@ -180,6 +181,8 @@ def inject_commands():
             ("adv", "show route ..."),
             ("adv_bgpmap", "show route ... (bgpmap)"),
         ]
+
+    commands =  [i for i in commands if i[0] not in app.config.get("BLACKLIST_COMMANDS", [])]
     commands_dict = {}
     for id, text in commands:
         commands_dict[id] = text
@@ -193,6 +196,12 @@ def inject_all_host():
 
 @app.route("/")
 def hello():
+    if app.config.get("DEFAULT_TEMPLATE", False):
+        first_command = next(iter(inject_commands()['commands_dict']))
+        set_session(first_command, "+".join(app.config["PROXY"].keys()), "ipv4", "")
+        with open(app.config.get("DEFAULT_TEMPLATE"), 'r') as filehandle:
+            filecontent = filehandle.read()
+        return render_template_string(filecontent)
     return redirect("/summary/%s/ipv4" % "+".join(app.config["PROXY"].keys()))
 
 
@@ -236,6 +245,8 @@ SUMMARY_UNWANTED_PROTOS = ["Kernel", "Static", "Device", "Direct"]
 @app.route("/summary/<hosts>")
 @app.route("/summary/<hosts>/<proto>")
 def summary(hosts, proto="ipv4"):
+    if 'summary' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
 
     set_session("summary", hosts, proto, "")
     command = "show protocols"
@@ -278,6 +289,9 @@ def summary(hosts, proto="ipv4"):
 
 @app.route("/detail/<hosts>/<proto>")
 def detail(hosts, proto):
+    if 'detail' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     name = get_query()
 
     if not name:
@@ -307,6 +321,9 @@ def detail(hosts, proto):
 
 @app.route("/traceroute/<hosts>/<proto>")
 def traceroute(hosts, proto):
+    if 'traceroute' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     q = get_query()
 
     if not q:
@@ -340,41 +357,65 @@ def traceroute(hosts, proto):
 
 @app.route("/adv/<hosts>/<proto>")
 def show_route_filter(hosts, proto):
+    if 'adv' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     return show_route("adv", hosts, proto)
 
 
 @app.route("/adv_bgpmap/<hosts>/<proto>")
 def show_route_filter_bgpmap(hosts, proto):
+    if 'adv_bgpmap' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     return show_route("adv_bgpmap", hosts, proto)
 
 
 @app.route("/where/<hosts>/<proto>")
 def show_route_where(hosts, proto):
+    if 'where' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     return show_route("where", hosts, proto)
 
 
 @app.route("/where_detail/<hosts>/<proto>")
 def show_route_where_detail(hosts, proto):
+    if 'where_detail' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     return show_route("where_detail", hosts, proto)
 
 
 @app.route("/where_bgpmap/<hosts>/<proto>")
 def show_route_where_bgpmap(hosts, proto):
+    if 'where_bgpmap' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     return show_route("where_bgpmap", hosts, proto)
 
 
 @app.route("/prefix/<hosts>/<proto>")
 def show_route_for(hosts, proto):
+    if 'prefix' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     return show_route("prefix", hosts, proto)
 
 
 @app.route("/prefix_detail/<hosts>/<proto>")
 def show_route_for_detail(hosts, proto):
+    if 'prefix_detail' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     return show_route("prefix_detail", hosts, proto)
 
 
 @app.route("/prefix_bgpmap/<hosts>/<proto>")
 def show_route_for_bgpmap(hosts, proto):
+    if 'prefix_bgpmap' not in iter(inject_commands()['commands_dict']):
+        return render_template('error.html', errors=["Access denied"]), 403
+
     return show_route("prefix_bgpmap", hosts, proto)
 
 
