@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 # vim: ts=4
 ###
@@ -40,7 +41,7 @@ app = Flask(__name__)
 app.debug = app.config["DEBUG"]
 app.config.from_pyfile(args.config_file)
 
-file_handler = TimedRotatingFileHandler(filename=app.config["LOG_FILE"], when="midnight") 
+file_handler = TimedRotatingFileHandler(filename=app.config["LOG_FILE"], when="midnight", backupCount=app.config.get("LOG_NUM_DAYS", 0))
 app.logger.setLevel(getattr(logging, app.config["LOG_LEVEL"].upper()))
 app.logger.addHandler(file_handler)
 
@@ -53,15 +54,20 @@ def access_log_after(response, *args, **kwargs):
     app.logger.info("[%s] reponse %s, %s", request.remote_addr,  request.url, response.status_code)
     return response
 
-def check_accesslist():
-    if  app.config["ACCESS_LIST"] and request.remote_addr not in app.config["ACCESS_LIST"]:
+def check_security():
+    if app.config["ACCESS_LIST"] and request.remote_addr not in app.config["ACCESS_LIST"]:
+        app.logger.info("Your remote address is not valid")
+        abort(401)
+
+    if app.config.get('SHARED_SECRET') and request.args.get("secret") != app.config["SHARED_SECRET"]:
+        app.logger.info("Your shared secret is not valid")
         abort(401)
 
 @app.route("/traceroute")
 @app.route("/traceroute6")
 def traceroute():
-    check_accesslist()
-    
+    check_security()
+
     if sys.platform.startswith('freebsd') or sys.platform.startswith('netbsd') or sys.platform.startswith('openbsd'):
         traceroute4 = [ 'traceroute' ]
         traceroute6 = [ 'traceroute6' ]
@@ -70,15 +76,14 @@ def traceroute():
         traceroute6 = [ 'traceroute', '-6' ]
 
     src = []
-    if request.path == '/traceroute6': 
-	traceroute = traceroute6
-	if app.config.get("IPV6_SOURCE",""):
-	     src = [ "-s",  app.config.get("IPV6_SOURCE") ]
-
+    if request.path == '/traceroute6':
+        traceroute = traceroute6
+        if app.config.get("IPV6_SOURCE", ""):
+            src = [ "-s",  app.config.get("IPV6_SOURCE") ]
     else: 
-	traceroute = traceroute4
-	if app.config.get("IPV4_SOURCE",""):
-	     src = [ "-s",  app.config.get("IPV4_SOURCE") ]
+        traceroute = traceroute4
+        if app.config.get("IPV4_SOURCE",""):
+            src = [ "-s",  app.config.get("IPV4_SOURCE") ]
 
     query = request.args.get("q","")
     query = unquote(query)
@@ -91,15 +96,13 @@ def traceroute():
         options = [ '-A', '-q1', '-N32', '-w1', '-m15' ]
     command = traceroute + src + options + [ query ]
     result = subprocess.Popen( command , stdout=subprocess.PIPE).communicate()[0].decode('utf-8', 'ignore').replace("\n","<br>")
-    
     return result
-
 
 
 @app.route("/bird")
 @app.route("/bird6")
 def bird():
-    check_accesslist()
+    check_security()
 
     if request.path == "/bird": b = BirdSocket(file=app.config.get("BIRD_SOCKET"))
     elif request.path == "/bird6": b = BirdSocket(file=app.config.get("BIRD6_SOCKET"))
@@ -112,7 +115,7 @@ def bird():
     b.close()
     # FIXME: use status
     return result
-	
+
 
 if __name__ == "__main__":
     app.logger.info("lgproxy start")

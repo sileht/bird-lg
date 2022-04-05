@@ -1,4 +1,4 @@
-
+const noArgReqs = ["summary"];
 
 $(window).unload(function(){
 		$(".progress").show()
@@ -12,7 +12,7 @@ function change_url(loc){
 
 function reload(){
 	loc = "/" + request_type + "/" + hosts + "/" + proto;
-	if (request_type != "summary" ){
+	if (!noArgReqs.includes(request_type)){
 		if( request_args != undefined && request_args != ""){
 			loc = loc + "?q=" + encodeURIComponent(request_args);
 			change_url(loc)
@@ -22,7 +22,7 @@ function reload(){
 	}
 }
 function update_view(){
-	if (request_type == "summary")
+	if (noArgReqs.includes(request_type))
 		$(".navbar-search").hide();
 	else
 		$(".navbar-search").show();
@@ -58,7 +58,7 @@ $(function(){
 			link = $(this).attr('href');
 			$.getJSON(link, function(data) {
 				$(".modal h3").html(data.title);
-			        $(".modal .modal-body > p").html(data.output);
+			        $(".modal .modal-body > p").css("white-space", "pre-line").text(data.output);
 				$(".modal").modal('show');
 			});
 		});

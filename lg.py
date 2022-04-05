@@ -22,7 +22,6 @@
 
 import base64
 from datetime import datetime
-import memcache
 import subprocess
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -49,13 +48,10 @@ app.config.from_pyfile(args.config_file)
 app.secret_key = app.config["SESSION_KEY"]
 app.debug = app.config["DEBUG"]
 
-file_handler = TimedRotatingFileHandler(filename=app.config["LOG_FILE"], when="midnight")
+file_handler = TimedRotatingFileHandler(filename=app.config["LOG_FILE"], when="midnight", backupCount=app.config.get("LOG_NUM_DAYS", 0))
 file_handler.setLevel(getattr(logging, app.config["LOG_LEVEL"].upper()))
 app.logger.addHandler(file_handler)
 
-memcache_server = app.config.get("MEMCACHE_SERVER", "127.0.0.1:11211")
-memcache_expiration = int(app.config.get("MEMCACHE_EXPIRATION", "1296000")) # 15 days by default
-mc = memcache.Client([memcache_server])
 
 def get_asn_from_as(n):
     asn_zone = app.config.get("ASN_ZONE", "asn.cymru.com")
@@ -149,16 +145,25 @@ def bird_proxy(host, proto, service, query):
         return False, 'Host "%s" invalid' % host
     elif not path:
         return False, 'Proto "%s" invalid' % proto
-    else:
-        url = "http://%s.%s:%d/%s?q=%s" % (host, app.config["DOMAIN"], port, path, quote(query))
-        try:
-            f = urlopen(url)
-            resultat = f.read()
-            status = True                # retreive remote status
-        except IOError:
-            resultat = "Failed retreive url: %s" % url
-            status = False
-        return status, resultat
+
+    url = "http://%s" % (host)
+    if "DOMAIN" in app.config:
+        url = "%s.%s" % (url, app.config["DOMAIN"])
+    url = "%s:%d/%s?" % (url, port, path)
+    if "SHARED_SECRET" in app.config:
+        url = "%ssecret=%s&" % (url, app.config["SHARED_SECRET"])
+    url = "%sq=%s" % (url, quote(query))
+
+    try:
+        f = urlopen(url)
+        resultat = f.read()
+        status = True                # retreive remote status
+    except IOError:
+        resultat = "Failed to retrieve URL for host %s" % host
+        app.logger.warning("Failed to retrieve URL for host %s: %s", host, url)
+        status = False
+
+    return status, resultat
 
 
 @app.context_processor
@@ -231,7 +236,7 @@ def whois():
         if m:
             query = query.groupdict()["domain"]
 
-    output = whois_command(query).replace("\n", "<br>")
+    output = whois_command(query)
     return jsonify(output=output, title=query)
 
 
@@ -415,10 +420,7 @@ def show_route_for_bgpmap(hosts, proto):
 
 
 def get_as_name(_as):
-    """return a string that contain the as number following by the as name
-
-    It's the use whois database informations
-    # Warning, the server can be blacklisted from ripe is too many requests are done
+    """Returns a string that contain the as number following by the as name
     """
     if not _as:
         return "AS?????"
@@ -426,12 +428,7 @@ def get_as_name(_as):
     if not _as.isdigit():
         return _as.strip()
 
-    name = mc.get(str('lg_%s' % _as))
-    if not name:
-        app.logger.info("asn for as %s not found in memcache", _as)
-        name = get_asn_from_as(_as)[-1].replace(" ","\r",1)
-        if name:
-            mc.set(str("lg_%s" % _as), str(name), memcache_expiration)
+    name = get_asn_from_as(_as)[-1].replace(" ", "\r", 1)
     return "AS%s | %s" % (_as, name)
 
 
@@ -488,19 +485,21 @@ def show_bgpmap():
 
             label_without_star = kwargs["label"].replace("*", "")
             if e.get_label() is not None:
-                labels = e.get_label().split("\r") 
+                labels = e.get_label().split("\r")
             else:
                 return edges[edge_tuple]
             if "%s*" % label_without_star not in labels:
-                labels = [ kwargs["label"] ]  + [ l for l in labels if not l.startswith(label_without_star) ] 
+                labels = [ kwargs["label"] ]  + [ l for l in labels if not l.startswith(label_without_star) ]
                 labels = sorted(labels, cmp=lambda x,y: x.endswith("*") and -1 or 1)
-                
                 label = escape("\r".join(labels))
                 e.set_label(label)
         return edges[edge_tuple]
 
     for host, asmaps in data.iteritems():
-        add_node(host, label= "%s\r%s" % (host.upper(), app.config["DOMAIN"].upper()), shape="box", fillcolor="#F5A9A9")
+        if "DOMAIN" in app.config:
+            add_node(host, label= "%s\r%s" % (host.upper(), app.config["DOMAIN"].upper()), shape="box", fillcolor="#F5A9A9")
+        else:
+            add_node(host, label= "%s" % (host.upper()), shape="box", fillcolor="#F5A9A9")
 
         as_number = app.config["AS_NUMBER"].get(host, None)
         if as_number:
@@ -508,7 +507,7 @@ def show_bgpmap():
             edge = add_edge(as_number, nodes[host])
             edge.set_color("red")
             edge.set_style("bold")
-    
+
     #colors = [ "#009e23", "#1a6ec1" , "#d05701", "#6f879f", "#939a0e", "#0e9a93", "#9a0e85", "#56d8e1" ]
     previous_as = None
     hosts = data.keys()
@@ -522,21 +521,29 @@ def show_bgpmap():
             hop_label = ""
             for _as in asmap:
                 if _as == previous_as:
-                    prepend_as[_as] = prepend_as.get(_as, 1) + 1
+                    if not prepend_as.get(_as, None):
+                        prepend_as[_as] = {}
+                    if not prepend_as[_as].get(host, None):
+                        prepend_as[_as][host] = {}
+                    if not prepend_as[_as][host].get(asmap[0], None):
+                        prepend_as[_as][host][asmap[0]] = 1
+                    prepend_as[_as][host][asmap[0]] += 1
                     continue
 
                 if not hop:
                     hop = True
                     if _as not in hosts:
-                        hop_label = _as 
+                        hop_label = _as
                         if first:
                             hop_label = hop_label + "*"
                         continue
                     else:
                         hop_label = ""
 
-                
-                add_node(_as, fillcolor=(first and "#F5A9A9" or "white"))
+                if _as == asmap[-1]:
+                    add_node(_as, fillcolor="#F5A9A9", shape="box", )
+                else:
+                    add_node(_as, fillcolor=(first and "#F5A9A9" or "white"), )
                 if hop_label:
                     edge = add_edge(nodes[previous_as], nodes[_as], label=hop_label, fontsize="7")
                 else:
@@ -544,22 +551,19 @@ def show_bgpmap():
 
                 hop_label = ""
 
-                if first:
+                if first or _as == asmap[-1]:
                     edge.set_style("bold")
                     edge.set_color("red")
-                elif edge.get_color() != "red":
+                elif edge.get_style() != "bold":
                     edge.set_style("dashed")
                     edge.set_color(color)
 
                 previous_as = _as
             first = False
 
-    if previous_as:
-        node = add_node(previous_as)
-        node.set_shape("box")
-
     for _as in prepend_as:
-        graph.add_edge(pydot.Edge(*(_as, _as), label=" %dx" % prepend_as[_as], color="grey", fontcolor="grey"))
+        for n in set([ n for h, d in prepend_as[_as].iteritems() for p, n in d.iteritems() ]):
+            graph.add_edge(pydot.Edge(*(_as, _as), label=" %dx" % n, color="grey", fontcolor="grey"))
 
     fmt = request.args.get('fmt', 'png')
     #response = Response("<pre>" + graph.create_dot() + "</pre>")
@@ -583,21 +587,29 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
     path = None
     paths = []
     net_dest = None
+    peer_protocol_name = ""
     for line in text:
         line = line.strip()
 
-        expr = re.search(r'(.*)via\s+([0-9a-fA-F:\.]+)\s+on.*\[(\w+)\s+', line)
+        expr = re.search(r'(.*)unicast\s+\[(\w+)\s+', line)
         if expr:
+            if expr.group(1).strip():
+                net_dest = expr.group(1).strip()
+            peer_protocol_name = expr.group(2).strip()
+
+        expr2 = re.search(r'(.*)via\s+([0-9a-fA-F:\.]+)\s+on\s+\S+(\s+\[(\w+)\s+)?', line)
+        if expr2:
             if path:
                 path.append(net_dest)
                 paths.append(path)
                 path = None
 
-            if expr.group(1).strip():
-                net_dest = expr.group(1).strip()
+            if expr2.group(1).strip():
+                net_dest = expr2.group(1).strip()
 
-            peer_ip = expr.group(2).strip()
-            peer_protocol_name = expr.group(3).strip()
+            peer_ip = expr2.group(2).strip()
+            if expr2.group(4):
+                peer_protocol_name = expr2.group(4).strip()
             # Check if via line is a internal route
             for rt_host, rt_ips in app.config["ROUTER_IP"].iteritems():
                 # Special case for internal routing
@@ -608,16 +620,19 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
                 # ugly hack for good printing
                 path = [ peer_protocol_name ]
 #                path = ["%s\r%s" % (peer_protocol_name, get_as_name(get_as_number_from_protocol_name(host, proto, peer_protocol_name)))]
-        
-        expr2 = re.search(r'(.*)unreachable\s+\[(\w+)\s+', line)
-        if expr2:
+
+        expr3 = re.search(r'(.*)unreachable\s+\[(\w+)\s+', line)
+        if expr3:
             if path:
                 path.append(net_dest)
                 paths.append(path)
                 path = None
 
-            if expr2.group(1).strip():
-                net_dest = expr2.group(1).strip()
+            if path is None:
+                path = [ expr3.group(2).strip() ]
+
+            if expr3.group(1).strip():
+                net_dest = expr3.group(1).strip()
 
         if line.startswith("BGP.as_path:"):
             ASes = line.replace("BGP.as_path:", "").strip().split(" ")
@@ -625,7 +640,7 @@ def build_as_tree_from_raw_bird_ouput(host, proto, text):
                 path.extend(ASes)
             else:
                 path = ASes
-    
+
     if path:
         path.append(net_dest)
         paths.append(path)
