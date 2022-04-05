@@ -40,3 +40,7 @@ ASN_ZONE = "asn.cymru.com"
 
 # Used for secure session storage, change this
 SESSION_KEY = '\xd77\xf9\xfa\xc2\xb5\xcd\x85)`+H\x9d\xeeW\\%\xbe/\xbaT\x89\xe8\xa7'
+
+# specifies an alternative start page template for the "/" route.
+# If not specified default action is redirection to /summary/%s/ipv4.
+# DEFAULT_TEMPLATE="/etc/bird-lg/index.html"
