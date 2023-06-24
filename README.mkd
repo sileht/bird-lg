@@ -82,6 +82,7 @@ Happy users
 -----------
 
 * https://lg.ovh.net/
+* https://lg.cenuta.com/
 * http://lg.beta.as6453.net/
 * https://lg.hamburg.freifunk.net/start
 * http://lg.ring.nlnog.net/
